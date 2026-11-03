@@ -78,7 +78,7 @@ final class Scene {
         double p = fade(c, elapsed);
         double windDown = clamp(elapsed / (double) Math.max(1, c.colourMs));
         out.tempo = 1 - 0.15 * windDown;
-        boolean music = c.sound == Config.Sound.MUSIC_BOX || c.sound == Config.Sound.DREAMY;
+        boolean music = c.sound == Config.Sound.MUSIC_BOX || c.sound == Config.Sound.CLASSIC || c.sound == Config.Sound.DREAMY;
         boolean waves = c.sound == Config.Sound.WAVES;
         double main;
         double sleepWaves = 0;

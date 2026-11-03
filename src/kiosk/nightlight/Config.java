@@ -6,7 +6,7 @@ import java.util.Map;
 
 /** An immutable snapshot of the plugin settings. Read from any thread. */
 final class Config {
-    enum Sound { MUSIC_BOX, DREAMY, WAVES, NONE }
+    enum Sound { MUSIC_BOX, CLASSIC, DREAMY, WAVES, NONE }
     enum SleepSound { SILENCE, QUIET, WAVES }
 
     final long colourMs;
@@ -37,6 +37,7 @@ final class Config {
         warmColor = color(s, "warmColor", 0xFF9440);
         warmBrightness = number(s, "warmBrightness", 25, 1, 100) / 100.0;
         switch (string(s, "sound", "Music box lullaby")) {
+            case "Brahms & Mozart lullabies": sound = Sound.CLASSIC; break;
             case "Dreamy pads": sound = Sound.DREAMY; break;
             case "Ocean waves": sound = Sound.WAVES; break;
             case "No sound": sound = Sound.NONE; break;

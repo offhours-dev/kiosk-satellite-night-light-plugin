@@ -97,9 +97,9 @@
       "type": "select",
       "title": "Music",
       "default": "Music box lullaby",
-      "options": ["Music box lullaby", "Dreamy pads", "Ocean waves", "No sound"],
+      "options": ["Music box lullaby", "Brahms & Mozart lullabies", "Dreamy pads", "Ocean waves", "No sound"],
       "group": "Sound",
-      "description": "What plays during the go to sleep show. The music is made up as it plays, so it never repeats exactly."
+      "description": "What plays during the go to sleep show. The music box lullaby is made up as it plays, so it never repeats exactly. Brahms & Mozart plays Brahms' Lullaby and Twinkle, Twinkle on the music box."
     },
     {
       "key": "volume",

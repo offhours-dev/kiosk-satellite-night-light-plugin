@@ -95,6 +95,7 @@ final class AudioOut implements Runnable {
             double master = stopping ? 0 : Math.pow(c.volume, 1.5);
             boolean silent = master * Math.max(mix.music, mix.waves) < 1e-4;
             synth.setDreamy(c.sound == Config.Sound.DREAMY);
+            synth.setSongs(c.sound == Config.Sound.CLASSIC);
             synth.setLevels(master, mix.music, mix.waves, mix.tempo);
 
             if (stopping && (synth.currentMaster() < 0.002 || System.nanoTime() - stopRequested > STOP_FADE_NS)) return;

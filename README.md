@@ -4,7 +4,7 @@ A bedtime night light for a child's room, built as a [Kiosk Satellite](https://g
 
 When the screensaver starts it shows a dim, warm night light. Press the **Go to sleep** button in the corner and gentle sleepy music plays while the screen drifts slowly through soft colours. Press **End**, or wait for the show to finish (30 minutes by default), and the colours and music fade over a few minutes back to the warm night light.
 
-- **Music made on the device.** A music box lullaby, dreamy pads or ocean waves, composed as it plays so it never repeats exactly. It slows down a little as bedtime goes on. There are no audio files and nothing to download.
+- **Music made on the device.** A music box lullaby, dreamy pads or ocean waves, composed as it plays so it never repeats exactly. Or Brahms' Lullaby and Mozart's Twinkle, Twinkle on the music box. It slows down a little as bedtime goes on. There are no audio files and nothing to download.
 - **Soft colours.** A slow glow drifting through Rainbow, Ocean, Sunset, Aurora or Candy colours. It dims gradually as the show goes on, so the sleep light is not a jump.
 - **Warm sleep light.** Amber by default, with adjustable colour and brightness. The sound can fade to silence, keep playing quietly or turn into ocean waves.
 - **Bedtime countdown.** Optionally shows a row of stars on the night light, about one per hour between bed time and up time (at most 10). They go out one by one through the night, so a child can see how long until it is time to get up.

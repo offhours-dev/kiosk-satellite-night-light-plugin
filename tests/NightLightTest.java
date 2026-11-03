@@ -170,6 +170,17 @@ public final class NightLightTest {
             check(st.rms > 800, (dreamy ? "dreamy" : "music box") + " is audible: rms " + st.rms);
             check(st.peak < 32767, "no hard clipping: peak " + st.peak);
         }
+        LullabySynth songs = new LullabySynth(rate, 5);
+        songs.setSongs(true);
+        songs.setLevels(1, 1, 0, 1);
+        songs.settle();
+        Stats sung = render(songs, rate * 120);
+        check(sung.rms > 800 && sung.peak < 32767, "classic lullabies are audible: rms " + sung.rms);
+        Map<String, Object> classic = new HashMap<>();
+        classic.put("sound", "Brahms & Mozart lullabies");
+        Config cc = new Config(classic);
+        check(cc.sound == Config.Sound.CLASSIC && Scene.mix(cc, 30_000, null).music > 0.99, "classic lullabies play in the show");
+
         LullabySynth waves = new LullabySynth(rate, 7);
         waves.setLevels(1, 0, 1, 1);
         waves.settle();

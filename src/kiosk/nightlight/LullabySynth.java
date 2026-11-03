@@ -6,7 +6,8 @@ import java.util.Random;
 /**
  * A small generative lullaby: a music box (or soft bell) melody in 3/4 over warm pads and a soft bass, plus an
  * ocean-waves layer. Every phrase is new but follows a repeating motif, so it sounds composed rather than random.
- * Everything is synthesised here, so there are no audio files and nothing to license.
+ * It can also play classic lullabies on the music box instead. Everything is synthesised here, so there are no audio
+ * files and nothing to license: the melodies are long in the public domain.
  *
  * Pure Java with no Android classes, so tests can render it on the desktop. Not thread-safe: call it from the audio
  * thread only.
@@ -26,6 +27,65 @@ final class LullabySynth {
     private static final boolean[] MINOR = {false, true, false, false, false, true, false, false};
     private static final int EIGHTHS_PER_BAR = 6;
 
+    /** A written-out tune in C: notes and chords as pairs of (semitones from C, length in eighths). -1 rests. */
+    private static final class Song {
+        final int[] notes;
+        final int[] chords;
+        final int bar;
+        final int length;
+
+        Song(int bar, int[] notes, int[] chords) {
+            this.bar = bar;
+            this.notes = notes;
+            this.chords = chords;
+            int sum = 0;
+            for (int i = 1; i < notes.length; i += 2) sum += notes[i];
+            length = sum;
+        }
+    }
+
+    private static final int C = 0, D = 2, E = 4, F = 5, G = 7, A = 9, B = 11, HC = 12, REST = -1;
+    private static final Song[] SONGS = {
+        // Brahms, Wiegenlied (Lullaby), Op. 49 No. 4.
+        new Song(6, new int[] {
+            REST, 4, E, 1, E, 1,
+            G, 3, E, 1, E, 2,
+            G, 4, E, 1, G, 1,
+            HC, 2, B, 3, A, 1,
+            A, 2, G, 2, D, 1, E, 1,
+            F, 2, D, 2, D, 1, E, 1,
+            F, 4, D, 1, F, 1,
+            B, 1, A, 1, G, 2, B, 2,
+            HC, 4, C, 1, C, 1,
+            HC, 4, A, 1, F, 1,
+            G, 4, E, 1, C, 1,
+            F, 2, G, 2, A, 2,
+            G, 4, C, 1, C, 1,
+            HC, 4, A, 1, F, 1,
+            G, 4, E, 1, C, 1,
+            F, 2, E, 2, D, 2,
+            C, 6,
+        }, new int[] {
+            C, 6, C, 6, C, 6, G, 6, G, 6, G, 6, G, 6, G, 6, C, 6,
+            F, 6, C, 6, G, 6, C, 6, F, 6, C, 6, G, 6, C, 6,
+        }),
+        // Mozart's theme for Ah vous dirai-je, maman (Twinkle, Twinkle, Little Star), K. 265.
+        new Song(8, new int[] {
+            C, 2, C, 2, G, 2, G, 2, A, 2, A, 2, G, 4,
+            F, 2, F, 2, E, 2, E, 2, D, 2, D, 2, C, 4,
+            G, 2, G, 2, F, 2, F, 2, E, 2, E, 2, D, 4,
+            G, 2, G, 2, F, 2, F, 2, E, 2, E, 2, D, 4,
+            C, 2, C, 2, G, 2, G, 2, A, 2, A, 2, G, 4,
+            F, 2, F, 2, E, 2, E, 2, D, 2, D, 2, C, 4,
+        }, new int[] {
+            C, 8, F, 4, C, 4, F, 4, C, 4, G, 4, C, 4,
+            C, 4, F, 4, C, 4, G, 4, C, 4, F, 4, C, 4, G, 4,
+            C, 8, F, 4, C, 4, F, 4, C, 4, G, 4, C, 4,
+        }),
+    };
+    /** Quiet eighths between one song and the next. */
+    private static final int SONG_GAP = 12;
+
     private final int rate;
     private final Random rnd;
 
@@ -35,6 +95,7 @@ final class LullabySynth {
     private final double smoothK;
     private double tempo = 1;
     private boolean dreamy;
+    private boolean songs;
 
     // Song position.
     private long step = -1;
@@ -43,6 +104,12 @@ final class LullabySynth {
     private final int[] motifSteps = new int[12];
     private int melodyIndex = 5;
     private int motifStart = 5;
+    private int song;
+    private int songAt;
+    private int noteI;
+    private int noteAt;
+    private int chordI;
+    private int chordAt;
 
     // Voices.
     private final Bell[] bells = new Bell[24];
@@ -72,6 +139,14 @@ final class LullabySynth {
     /** Dreamy pads: slower, lower and softer than the music box. */
     void setDreamy(boolean dreamy) {
         this.dreamy = dreamy;
+    }
+
+    /** Classic lullabies on the music box, instead of making the tune up. */
+    void setSongs(boolean songs) {
+        if (songs == this.songs) return;
+        this.songs = songs;
+        song = 0;
+        startSong();
     }
 
     /** master, music and waves from 0 to 1; tempo multiplies the speed, 0.5 to 1.5. */
@@ -125,6 +200,10 @@ final class LullabySynth {
     // ---- Composition ------------------------------------------------------------------------------------------
 
     private void onStep() {
+        if (songs) {
+            playSong();
+            return;
+        }
         int bar = (int) (step / EIGHTHS_PER_BAR);
         int slot = (int) (step % EIGHTHS_PER_BAR);
         int chord = (bar / 2) % ROOTS.length;
@@ -162,6 +241,35 @@ final class LullabySynth {
                 bell(melodyIndex, 0.6);
             }
         }
+    }
+
+    private void startSong() {
+        songAt = noteI = noteAt = chordI = chordAt = 0;
+    }
+
+    private void playSong() {
+        Song s = SONGS[song];
+        if (songAt >= s.length + SONG_GAP) {
+            song = (song + 1) % SONGS.length;
+            startSong();
+            s = SONGS[song];
+        }
+        if (chordI < s.chords.length && chordAt == songAt) {
+            int root = s.chords[chordI];
+            changePads(root, false);
+            bassNote(root);
+            chordAt += s.chords[chordI + 1];
+            chordI += 2;
+        }
+        if (noteI < s.notes.length && noteAt == songAt) {
+            int note = s.notes[noteI];
+            if (note != REST) bellNote(KEY + note, songAt % s.bar == 0 ? 0.75 : 0.55);
+            noteAt += s.notes[noteI + 1];
+            noteI += 2;
+        }
+        // Let the last chord fade away during the gap.
+        if (songAt == s.length) for (Pad p : pads) p.target = 0;
+        songAt++;
     }
 
     private void newMotif() {
@@ -210,13 +318,21 @@ final class LullabySynth {
     // ---- Voices -----------------------------------------------------------------------------------------------
 
     private void bell(int index, double velocity) {
+        bellNote(melodyMidi(index), velocity);
+    }
+
+    private void bellNote(int midi, double velocity) {
         Bell b = free();
-        b.start(midiHz(melodyMidi(index)), velocity * (0.85 + 0.3 * rnd.nextDouble()) * (dreamy ? 0.32 : 0.30),
+        b.start(midiHz(midi), velocity * (0.85 + 0.3 * rnd.nextDouble()) * (dreamy ? 0.32 : 0.30),
             dreamy ? 2.6 : 1.5, dreamy ? 0.04 : 0.004, dreamy, false);
     }
 
     private void bass(int chord) {
-        int midi = KEY - 24 + ROOTS[chord];
+        bassNote(ROOTS[chord]);
+    }
+
+    private void bassNote(int root) {
+        int midi = KEY - 24 + root;
         if (midi > 52) midi -= 12;
         free().start(midiHz(midi), dreamy ? 0.09 : 0.11, 2.4, 0.02, true, true);
     }
@@ -231,12 +347,16 @@ final class LullabySynth {
     }
 
     private void changePads(int chord) {
+        changePads(ROOTS[chord], MINOR[chord]);
+    }
+
+    private void changePads(int root, boolean minor) {
         for (Pad p : pads) p.target = 0;
-        int third = MINOR[chord] ? 3 : 4;
+        int third = minor ? 3 : 4;
         int[] tones = {0, third, 7};
         double level = dreamy ? 0.075 : 0.045;
         for (int tone : tones) {
-            int midi = KEY - 12 + ROOTS[chord] + tone;
+            int midi = KEY - 12 + root + tone;
             while (midi >= 64) midi -= 12;
             while (midi < 52) midi += 12;
             Pad p = freePad();
