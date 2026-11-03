@@ -25,7 +25,9 @@ Either way works:
 | **Go to sleep or end** | Starts the show, or ends it if it is playing. Handy for a single clap gesture |
 | **Stop night light** | Dismisses it and restores your usual screensaver |
 
-While the night light shows, a dim button in the bottom right corner switches between **Go to sleep** and **End**. Touches anywhere else still go to Kiosk Satellite, so they dismiss the screensaver as usual.
+While the night light shows, a dim button in the bottom right corner switches between **Go to sleep** and **End**. A single tap anywhere else does nothing, so little hands cannot close it by accident. **Double tap** to close the screensaver. A hint saying so shows for a few seconds after each touch.
+
+The button needs a Kiosk Satellite release that passes taps to plugin screensavers. On older releases there is no button and any tap closes the screensaver, so use a gesture such as a clap with the **Go to sleep or end** action instead.
 
 Each action can also be exposed to Home Assistant from the plugin page. You can then start the night light from a bedtime automation.
 
@@ -60,7 +62,7 @@ Settings save automatically and apply straight away, even while the night light 
 
 ## Permissions
 
-The plugin declares `screensaver` to draw the night light, `overlay` for the Go to sleep button, plus `screensaver.mode` and `host.control` so the actions can switch to it and start or dismiss it. It reads nothing from the kiosk and makes no network requests.
+The plugin declares `screensaver` to draw the night light, plus `screensaver.mode` and `host.control` so the actions can switch to it and start or dismiss it. It reads nothing from the kiosk and makes no network requests.
 
 ## Building
 

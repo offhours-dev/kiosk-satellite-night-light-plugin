@@ -7,9 +7,9 @@ import android.widget.TextView;
 import me.jxl.kiosk.plugins.KsTheme;
 
 /**
- * The button floating over the night light: Go to sleep starts the show, End fades it back to the night light. It
- * is drawn dim in the sleep light colour so it does not light up a dark bedroom, and checks once a second so the
- * label follows the show ending on its own.
+ * The button on the night light: Go to sleep starts the show, End fades it back to the night light. It is drawn dim
+ * in the sleep light colour so it does not light up a dark bedroom, and checks once a second so the label follows
+ * the show ending on its own.
  */
 final class SleepButton extends TextView {
     interface Source {

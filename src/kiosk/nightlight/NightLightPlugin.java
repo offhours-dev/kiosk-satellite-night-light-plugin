@@ -13,20 +13,18 @@ import java.util.concurrent.TimeUnit;
 import me.jxl.kiosk.plugins.KioskPlugin;
 import me.jxl.kiosk.plugins.KsTheme;
 import me.jxl.kiosk.plugins.OverlayFactory;
-import me.jxl.kiosk.plugins.OverlaySpec;
 import me.jxl.kiosk.plugins.PluginHost;
 
 /**
  * A night light for a child's room, drawn as a Kiosk Satellite screensaver. It opens on a dim warm light. A button
- * over it starts the go to sleep show: sleepy music while the screen drifts through soft colours, which fades back to
+ * on it starts the go to sleep show: sleepy music while the screen drifts through soft colours, which fades back to
  * the warm light when it is over or when End is pressed. KS still decides when the screensaver starts and ends; this
- * plugin only draws it, its button and plays the music.
+ * plugin only draws it and plays the music. A double tap closes it.
  */
 public final class NightLightPlugin implements KioskPlugin, GlowView.Source, AudioOut.Source, SleepButton.Source {
     static final String ID = "night-light";
     static final String KEY = "nightlight";
     static final String MODE = "plugin:" + ID + ":" + KEY;
-    static final String BUTTON = "sleepbutton";
     static final String READY = "Ready. Choose Night Light under Screensaver mode, or run the Start night light action.";
     /** KS can rebuild the view (rotation, UI scale), so wait a moment before treating it as dismissed. */
     static final long END_GRACE_MS = 2500;
@@ -42,7 +40,8 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
     private int views;
     /** True while this plugin, not the user's Screensaver mode, chose the night light. */
     private boolean overriding;
-    private boolean buttonShown;
+    /** True when KS passes taps to the screensaver, so it can have its Go to sleep button. */
+    private volatile boolean touch;
 
     public NightLightPlugin() {
         this(System::currentTimeMillis);
@@ -61,7 +60,14 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
             return thread;
         });
         try {
-            host.publishScreensaverView(KEY, "Night Light", new Factory());
+            try {
+                host.publishScreensaverView(KEY, "Night Light", new Factory(), true);
+                touch = true;
+            } catch (UnsupportedOperationException | LinkageError noTouch) {
+                // An older KS: the screensaver works, but every tap closes it, so it has no button.
+                host.publishScreensaverView(KEY, "Night Light", new Factory());
+                touch = false;
+            }
             host.status(READY, false);
         } catch (UnsupportedOperationException | LinkageError olderHost) {
             host.status("This Kiosk Satellite is too old for native screensavers. Update Kiosk Satellite.", true);
@@ -139,7 +145,6 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
     @Override public void onEvent(String event, Map<String, Object> payload) {}
 
     @Override public synchronized void stop() {
-        if (host != null) hideButton(host);
         if (audio != null) audio.stopNow();
         audio = null;
         if (timer != null) timer.shutdownNow();
@@ -161,7 +166,6 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
         }
         PluginHost h = host;
         if (h == null) return;
-        showButton(h);
         h.status(session.showing(config.colourMs) ? "Go to sleep show playing." : "Night light on.", false);
     }
 
@@ -180,35 +184,12 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
         audio = null;
         PluginHost h = host;
         if (h == null) return;
-        hideButton(h);
         // The Start action only borrows the screensaver for the night. Give the usual one back in the morning.
         if (overriding) {
             overriding = false;
             h.executeCommand("clearScreensaverMode", Collections.emptyMap(), (ok, d, e) -> {});
         }
         h.status(READY, false);
-    }
-
-    /** Floats the Go to sleep button over the screensaver. Touches on the screensaver itself stay with KS. */
-    private void showButton(PluginHost h) {
-        if (buttonShown) return;
-        try {
-            h.showOverlay(BUTTON, OverlaySpec.at(OverlaySpec.BOTTOM_RIGHT).inset(24).onTop(true).closeOnBack(false)
-                .enter(OverlaySpec.FADE).exit(OverlaySpec.FADE).transitionDuration(600), new ButtonFactory());
-            buttonShown = true;
-        } catch (UnsupportedOperationException | SecurityException | LinkageError unavailable) {
-            h.log("No Go to sleep button: " + unavailable);
-        }
-    }
-
-    private void hideButton(PluginHost h) {
-        if (!buttonShown) return;
-        buttonShown = false;
-        try {
-            h.hideOverlay(BUTTON);
-        } catch (RuntimeException | LinkageError ignored) {
-            // The session is ending anyway.
-        }
     }
 
     synchronized boolean audioRunning() {
@@ -247,19 +228,14 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
 
     private final class Factory implements OverlayFactory {
         @Override public View create(Context context, KsTheme theme) {
-            GlowView view = new GlowView(context, NightLightPlugin.this);
+            GlowView glow = new GlowView(context, NightLightPlugin.this);
+            View view = touch ? new NightLightView(context, theme, glow, NightLightPlugin.this) : glow;
             viewShown();
             return view;
         }
 
         @Override public void onDestroy(View view) {
             viewGone();
-        }
-    }
-
-    private final class ButtonFactory implements OverlayFactory {
-        @Override public View create(Context context, KsTheme theme) {
-            return new SleepButton(context, theme, NightLightPlugin.this);
         }
     }
 }

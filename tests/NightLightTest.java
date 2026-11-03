@@ -229,6 +229,13 @@ public final class NightLightTest {
         NightLightPlugin plugin = new NightLightPlugin(() -> now[0]);
         plugin.start(host, Collections.emptyMap());
         check("nightlight".equals(host.screensaverKey) && host.factory != null, "publishes the screensaver");
+        check(host.touch, "asks for taps");
+        NightLightPlugin older = new NightLightPlugin(() -> now[0]);
+        FakeHost olderHost = new FakeHost();
+        olderHost.noTouch = true;
+        older.start(olderHost, Collections.emptyMap());
+        check("nightlight".equals(olderHost.screensaverKey) && !olderHost.touch, "older KS still gets the screensaver");
+        older.stop();
         check(NightLightPlugin.MODE.equals("plugin:night-light:nightlight"), "mode id");
 
         check(!plugin.showing(), "not showing before go to sleep");
@@ -273,6 +280,8 @@ public final class NightLightTest {
         final Map<String, Map<String, Object>> lastArgs = new HashMap<>();
         String screensaverKey;
         OverlayFactory factory;
+        boolean touch;
+        boolean noTouch;
 
         @Override public void executeCommand(String command, Map<String, Object> arguments, CommandCallback callback) {
             commands.add(command);
@@ -282,6 +291,11 @@ public final class NightLightTest {
         @Override public void publishScreensaverView(String key, String title, OverlayFactory factory) {
             screensaverKey = key;
             this.factory = factory;
+        }
+        @Override public void publishScreensaverView(String key, String title, OverlayFactory factory, boolean touch) {
+            if (noTouch) throw new UnsupportedOperationException("Touch screensavers are unavailable");
+            publishScreensaverView(key, title, factory);
+            this.touch = touch;
         }
         @Override public void removeScreensaver(String key) {}
         @Override public void status(String message, boolean error) {}

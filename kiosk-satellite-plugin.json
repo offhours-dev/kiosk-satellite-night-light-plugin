@@ -13,8 +13,7 @@
   "capabilities": [
     "screensaver",
     "screensaver.mode",
-    "host.control",
-    "overlay"
+    "host.control"
   ],
   "icon": "icon.png",
   "settings": [
