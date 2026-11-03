@@ -39,6 +39,15 @@
       "description": "The set of colours the screen drifts through."
     },
     {
+      "key": "colourStyle",
+      "type": "select",
+      "title": "Colour style",
+      "default": "Glow",
+      "options": ["Glow", "Liquid"],
+      "group": "Colours",
+      "description": "How the go to sleep show looks. Glow is one soft glow that drifts through the colours. Liquid is a few soft blobs of colour that slowly drift and blend into each other. The night light is not affected."
+    },
+    {
       "key": "colourSpeed",
       "type": "select",
       "title": "Colour speed",

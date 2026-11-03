@@ -17,6 +17,18 @@ final class Scene {
         double cy;
     }
 
+    /** One soft colour blob of the liquid style, at (x, y) with radius r as fractions of the screen. 0xRRGGBB. */
+    static final class Blob {
+        double x;
+        double y;
+        double r;
+        int colour;
+    }
+
+    static final int BLOBS = 4;
+    /** In the liquid style the glow underneath is dimmed, so the blobs carry the colour. */
+    static final double LIQUID_BASE = 0.35;
+
     /** Layer levels for the synth, from 0 to 1 before the volume setting is applied. */
     static final class Mix {
         double music;
@@ -41,13 +53,18 @@ final class Scene {
         return smooth(clamp((elapsed - c.colourMs) / (double) c.fadeMs));
     }
 
+    /** How close the show is to the sleep light, from 0 to 1: it grows out of it at the start and fades back at the end. */
+    static double toSleep(Config c, long elapsed) {
+        return Math.max(fade(c, elapsed), 1 - smooth(clamp(elapsed / (double) FADE_IN_MS)));
+    }
+
     static Frame frame(Config c, long elapsed, Frame out) {
         if (out == null) out = new Frame();
         elapsed = Math.max(0, elapsed);
         out.phase = phase(c, elapsed);
         int warm = scale(c.warmColor, c.warmBrightness);
         int warmEdge = scale(c.warmColor, c.warmBrightness * 0.72);
-        double p = Math.max(fade(c, elapsed), 1 - smooth(clamp(elapsed / (double) FADE_IN_MS)));
+        double p = toSleep(c, elapsed);
         if (out.phase == Phase.SLEEP) {
             out.centre = warm;
             out.edge = warmEdge;
@@ -60,6 +77,7 @@ final class Scene {
         double windDown = clamp(elapsed / (double) Math.max(1, c.colourMs));
         double bright = c.colourBrightness * (1 - 0.35 * windDown);
         double pos = t / c.secondsPerColour;
+        if (c.liquid) bright *= LIQUID_BASE;
         int centre = scale(colourAt(c.palette, pos), bright);
         int edge = scale(colourAt(c.palette, pos + 0.6), bright * 0.38);
         double cx = 0.5 + 0.18 * Math.sin(2 * Math.PI * t / 97.0);
@@ -68,6 +86,37 @@ final class Scene {
         out.edge = mix(edge, warmEdge, p);
         out.cx = cx + (0.5 - cx) * p;
         out.cy = cy + (0.5 - cy) * p;
+        return out;
+    }
+
+    /**
+     * The liquid style's blobs during the show. Each wanders its own slow path and drifts through the palette, a
+     * different colour from the others, so where they overlap the colours blend. They slow and dim as the show winds
+     * down and gather into the centre as it fades to the sleep light. Colours are added on top of the frame.
+     */
+    static Blob[] blobs(Config c, long elapsed, Blob[] out) {
+        if (out == null) {
+            out = new Blob[BLOBS];
+            for (int i = 0; i < BLOBS; i++) out[i] = new Blob();
+        }
+        elapsed = Math.max(0, elapsed);
+        double windDown = clamp(elapsed / (double) Math.max(1, c.colourMs));
+        // Slows to 70% by the end of the show without the blobs ever jumping.
+        double t = elapsed / 1000.0 * (1 - 0.15 * windDown);
+        double p = toSleep(c, elapsed);
+        double bright = c.colourBrightness * (1 - 0.35 * windDown) * 0.5 * (1 - p);
+        // One lap of a blob's path takes about five colour changes: a minute or two.
+        double lap = c.secondsPerColour * 5;
+        for (int i = 0; i < out.length; i++) {
+            Blob b = out[i];
+            double x = 0.5 + 0.32 * Math.sin(2 * Math.PI * t / (lap * (1 + 0.23 * i)) + i * 1.7);
+            double y = 0.5 + 0.28 * Math.sin(2 * Math.PI * t / (lap * (1.31 + 0.17 * i)) + i * 2.3);
+            b.x = x + (0.5 - x) * p;
+            b.y = y + (0.5 - y) * p;
+            b.r = 0.42 + 0.08 * Math.sin(2 * Math.PI * t / (lap * 0.9 + i * 7) + i);
+            double hue = t / c.secondsPerColour + i * c.palette.length / (double) out.length;
+            b.colour = scale(colourAt(c.palette, hue), bright);
+        }
         return out;
     }
 

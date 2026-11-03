@@ -14,6 +14,8 @@ final class Config {
     final int[] palette;
     final double secondsPerColour;
     final double colourBrightness;
+    /** Liquid colour style: soft colour blobs that drift and blend during the show, instead of one glow. */
+    final boolean liquid;
     final int warmColor;
     final double warmBrightness;
     final Sound sound;
@@ -34,6 +36,7 @@ final class Config {
             default: secondsPerColour = 22;
         }
         colourBrightness = number(s, "colourBrightness", 70, 10, 100) / 100.0;
+        liquid = "Liquid".equals(string(s, "colourStyle", "Glow"));
         warmColor = color(s, "warmColor", 0xFF9440);
         warmBrightness = number(s, "warmBrightness", 25, 1, 100) / 100.0;
         switch (string(s, "sound", "Music box lullaby")) {

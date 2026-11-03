@@ -69,6 +69,30 @@ public final class NightLightTest {
         check(Scene.colourAt(Palettes.RAINBOW, Palettes.RAINBOW.length) == Palettes.RAINBOW[0], "palette loops");
         check(Scene.colourAt(Palettes.RAINBOW, -0.5) != 0, "negative positions wrap");
 
+        // The liquid style: off by default, and only the show changes.
+        check(!c.liquid, "glow style by default");
+        Map<String, Object> ls = new HashMap<>();
+        ls.put("colourStyle", "Liquid");
+        Config lc = new Config(ls);
+        check(lc.liquid, "liquid style");
+        check(Scene.frame(lc, Session.NIGHT, null).centre == Scene.frame(c, Session.NIGHT, null).centre, "liquid leaves the night light alone");
+        check(Scene.frame(lc, 0, null).centre == Scene.frame(c, 0, null).centre, "liquid grows out of the sleep light too");
+        check(Scene.frame(lc, 60_000, null).centre != Scene.frame(c, 60_000, null).centre, "liquid dims the glow under the blobs");
+        Scene.Blob[] blobs = Scene.blobs(lc, 0, null);
+        check(blobs.length == Scene.BLOBS && blobs[0].colour == 0, "no blobs before the show grows in");
+        Scene.blobs(lc, 60_000, blobs);
+        boolean lit = false;
+        for (Scene.Blob b : blobs) {
+            lit |= b.colour != 0;
+            check(b.x >= 0 && b.x <= 1 && b.y >= 0 && b.y <= 1 && b.r > 0.3, "blobs stay on screen");
+        }
+        check(lit, "blobs show during the show");
+        check(blobs[0].colour != blobs[1].colour, "blobs are different colours");
+        double x0 = blobs[0].x;
+        check(Math.abs(Scene.blobs(lc, 60_066, null)[0].x - x0) < 0.005, "blobs drift slowly");
+        Scene.blobs(lc, lc.colourMs + lc.fadeMs, blobs);
+        check(blobs[0].colour == 0 && Math.abs(blobs[0].x - 0.5) < 1e-9, "blobs gather and fade into the sleep light");
+
         Scene.Mix m = Scene.mix(c, 0, null);
         check(m.music == 0, "music fades in");
         Scene.mix(c, 30_000, m);

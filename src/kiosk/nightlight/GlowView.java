@@ -2,10 +2,14 @@
 package kiosk.nightlight;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
 import android.graphics.RadialGradient;
+import android.graphics.Rect;
 import android.graphics.Shader;
 import android.view.View;
 import java.util.Calendar;
@@ -26,6 +30,8 @@ final class GlowView extends View {
     private static final long FADE_UP_MS = 4000;
     private static final int STAR_LIT = 0x8FB4FF;
     private static final int STAR_OUT = 0x9A9A9A;
+    /** The liquid style is drawn this many times smaller, then stretched: the stretch blurs it smoothly for free. */
+    private static final int LIQUID_SCALE = 6;
 
     private final Source source;
     private final Paint paint = new Paint();
@@ -34,6 +40,14 @@ final class GlowView extends View {
     private final float[] stops = {0f, 0.5f, 1f};
     private final Paint starPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path star = new Path();
+    private Scene.Blob[] blobs;
+    private Bitmap liquid;
+    private Canvas liquidCanvas;
+    private final Paint blobPaint = new Paint();
+    private final Paint liquidPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
+    private final Rect screen = new Rect();
+    private final int[] blobColours = new int[3];
+    private final float[] blobStops = {0f, 0.45f, 1f};
     private boolean shown;
 
     GlowView(Context context, Source source) {
@@ -42,6 +56,10 @@ final class GlowView extends View {
         paint.setDither(true);
         paint.setAntiAlias(false);
         setBackgroundColor(0xFF000000);
+        PorterDuffXfermode add = new PorterDuffXfermode(PorterDuff.Mode.ADD);
+        blobPaint.setXfermode(add);
+        liquidPaint.setXfermode(add);
+        liquidPaint.setDither(true);
     }
 
     @Override protected void onDraw(Canvas canvas) {
@@ -58,8 +76,35 @@ final class GlowView extends View {
         paint.setShader(new RadialGradient((float) (frame.cx * w), (float) (frame.cy * h), radius, colours, stops,
             Shader.TileMode.CLAMP));
         canvas.drawRect(0, 0, w, h, paint);
+        if (c.liquid && frame.phase != Scene.Phase.SLEEP) drawLiquid(canvas, w, h, c, elapsed);
         if (frame.phase != Scene.Phase.COLOURS) drawStars(canvas, w, h, c, Scene.fade(c, elapsed));
         if (shown) postInvalidateDelayed(frame.phase == Scene.Phase.SLEEP ? SLEEP_FRAME_MS : COLOUR_FRAME_MS);
+    }
+
+    /** The liquid style's soft blobs, added over the dimmed glow while the show plays. */
+    private void drawLiquid(Canvas canvas, int w, int h, Config c, long elapsed) {
+        int sw = Math.max(1, w / LIQUID_SCALE);
+        int sh = Math.max(1, h / LIQUID_SCALE);
+        if (liquid == null || liquid.getWidth() != sw || liquid.getHeight() != sh) {
+            liquid = Bitmap.createBitmap(sw, sh, Bitmap.Config.ARGB_8888);
+            liquidCanvas = new Canvas(liquid);
+        }
+        liquid.eraseColor(0);
+        blobs = Scene.blobs(c, elapsed, blobs);
+        float size = Math.max(sw, sh);
+        for (Scene.Blob b : blobs) {
+            if (b.colour == 0) continue;
+            blobColours[0] = 0xFF000000 | b.colour;
+            blobColours[1] = 0x70000000 | b.colour;
+            blobColours[2] = b.colour;
+            float x = (float) (b.x * sw);
+            float y = (float) (b.y * sh);
+            float r = (float) (b.r * size);
+            blobPaint.setShader(new RadialGradient(x, y, r, blobColours, blobStops, Shader.TileMode.CLAMP));
+            liquidCanvas.drawCircle(x, y, r, blobPaint);
+        }
+        screen.set(0, 0, w, h);
+        canvas.drawBitmap(liquid, null, screen, liquidPaint);
     }
 
     /** The bedtime countdown on the night light: lit stars still to go, outlines for the hours already slept. */
@@ -122,6 +167,8 @@ final class GlowView extends View {
     @Override protected void onDetachedFromWindow() {
         shown = false;
         animate().cancel();
+        liquid = null;
+        liquidCanvas = null;
         super.onDetachedFromWindow();
     }
 }
