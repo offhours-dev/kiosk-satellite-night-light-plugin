@@ -15,6 +15,7 @@ public final class NightLightTest {
         config();
         scene();
         session();
+        stars();
         synth();
         plugin();
         System.out.println("NightLightTest passed");
@@ -90,6 +91,39 @@ public final class NightLightTest {
         s.put("sleepSound", "Fade to silence");
         Scene.mix(new Config(s), 30_000, m);
         check(m.music == 0 && m.waves == 0, "no sound means no sound");
+    }
+
+    static void stars() {
+        long hour = 60 * 60_000L;
+        check(Config.parseTime("19:00") == 19 * hour, "24 hour time");
+        check(Config.parseTime("7pm") == 19 * hour && Config.parseTime("7:30 AM") == 7 * hour + 30 * 60_000L, "am and pm");
+        check(Config.parseTime("12am") == 0 && Config.parseTime("12pm") == 12 * hour, "midnight and noon");
+        check(Config.parseTime("25:00") < 0 && Config.parseTime("bedtime") < 0 && Config.parseTime("") < 0, "bad times");
+
+        Config off = new Config(Collections.emptyMap());
+        check(!off.countdown && Stars.count(off) == 0, "countdown is off by default");
+        Map<String, Object> s = new HashMap<>();
+        s.put("countdown", true);
+        s.put("bedTime", "nonsense");
+        Config c = new Config(s);
+        check(c.bedMs == 19 * hour && c.wakeMs == 7 * hour, "bad times fall back");
+        check(Stars.count(c) == 10, "a 12 hour night still has at most 10 stars");
+        check(Stars.lit(c, 19 * hour) == 10, "all lit at bed time");
+        check(Stars.lit(c, 7 * hour - 1) == 1, "one left just before up time");
+        check(Stars.lit(c, 7 * hour) == 0, "all out at up time");
+        check(Stars.lit(c, 12 * hour) == 0, "still out in the morning");
+        check(Stars.lit(c, 14 * hour) == 10, "lit again ready for the night");
+        check(Stars.lit(c, 1 * hour) == 5, "half way through the night");
+
+        s.put("bedTime", "8pm");
+        s.put("wakeTime", "6:00");
+        c = new Config(s);
+        check(Stars.count(c) == 10, "10 hour night has 10 stars");
+        check(Stars.lit(c, 20 * hour + hour / 2) == 10 && Stars.lit(c, 21 * hour) == 9, "one star an hour");
+        s.put("wakeTime", "11pm");
+        check(Stars.count(new Config(s)) == 3, "a short night has fewer stars");
+        s.put("wakeTime", "8pm");
+        check(Stars.count(new Config(s)) == 0, "no night, no stars");
     }
 
     static void session() {
@@ -194,6 +228,10 @@ public final class NightLightTest {
         check(!plugin.showing(), "the button ends the show");
         plugin.toggleShow();
         check(plugin.showing(), "and starts it again");
+        plugin.execute("toggleSleep", Collections.emptyMap());
+        check(!plugin.showing(), "the toggle action ends the show");
+        plugin.execute("toggleSleep", Collections.emptyMap());
+        check(plugin.showing(), "and starts it again too");
 
         host.commands.clear();
         plugin.execute("startNightLight", Collections.emptyMap());

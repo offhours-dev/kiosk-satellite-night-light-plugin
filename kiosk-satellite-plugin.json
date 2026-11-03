@@ -121,6 +121,32 @@
       "options": ["Fade to silence", "Keep playing quietly", "Ocean waves"],
       "group": "Sound",
       "description": "What plays while the warm night light shows, including when the screensaver first starts."
+    },
+    {
+      "key": "countdown",
+      "type": "boolean",
+      "title": "Bedtime countdown",
+      "default": false,
+      "group": "Countdown",
+      "description": "Shows a row of stars on the night light, about one per hour of sleep. They go out one by one, so your child can see how long until up time."
+    },
+    {
+      "key": "bedTime",
+      "type": "string",
+      "title": "Bed time",
+      "default": "19:00",
+      "group": "Countdown",
+      "visibleWhen": { "key": "countdown", "equals": true },
+      "description": "When the night starts and every star is lit, such as 19:00 or 7pm."
+    },
+    {
+      "key": "wakeTime",
+      "type": "string",
+      "title": "Up time",
+      "default": "07:00",
+      "group": "Countdown",
+      "visibleWhen": { "key": "countdown", "equals": true },
+      "description": "When the last star goes out and it is time to get up, such as 07:00 or 7am. At most 10 stars show."
     }
   ],
   "commands": [
@@ -137,6 +163,10 @@
       "title": "End go to sleep"
     },
     {
+      "id": "toggleSleep",
+      "title": "Go to sleep or end"
+    },
+    {
       "id": "stopNightLight",
       "title": "Stop night light"
     }
@@ -144,6 +174,7 @@
   "groups": [
     { "title": "Colours" },
     { "title": "Sleep light" },
-    { "title": "Sound" }
+    { "title": "Sound" },
+    { "title": "Countdown" }
   ]
 }

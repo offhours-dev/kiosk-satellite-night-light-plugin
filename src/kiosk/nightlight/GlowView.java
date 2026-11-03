@@ -4,9 +4,11 @@ package kiosk.nightlight;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.RadialGradient;
 import android.graphics.Shader;
 import android.view.View;
+import java.util.Calendar;
 
 /**
  * The screensaver: the warm night light, or during the go to sleep show a soft glow that drifts slowly through the
@@ -22,12 +24,16 @@ final class GlowView extends View {
     private static final long COLOUR_FRAME_MS = 66;
     private static final long SLEEP_FRAME_MS = 2000;
     private static final long FADE_UP_MS = 4000;
+    private static final int STAR_LIT = 0x8FB4FF;
+    private static final int STAR_OUT = 0x9A9A9A;
 
     private final Source source;
     private final Paint paint = new Paint();
     private final Scene.Frame frame = new Scene.Frame();
     private final int[] colours = new int[3];
     private final float[] stops = {0f, 0.5f, 1f};
+    private final Paint starPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Path star = new Path();
     private boolean shown;
 
     GlowView(Context context, Source source) {
@@ -42,7 +48,9 @@ final class GlowView extends View {
         int w = getWidth();
         int h = getHeight();
         if (w <= 0 || h <= 0) return;
-        Scene.frame(source.config(), source.elapsed(), frame);
+        Config c = source.config();
+        long elapsed = source.elapsed();
+        Scene.frame(c, elapsed, frame);
         colours[0] = 0xFF000000 | frame.centre;
         colours[1] = 0xFF000000 | Scene.mix(frame.centre, frame.edge, 0.55);
         colours[2] = 0xFF000000 | frame.edge;
@@ -50,7 +58,49 @@ final class GlowView extends View {
         paint.setShader(new RadialGradient((float) (frame.cx * w), (float) (frame.cy * h), radius, colours, stops,
             Shader.TileMode.CLAMP));
         canvas.drawRect(0, 0, w, h, paint);
+        if (frame.phase != Scene.Phase.COLOURS) drawStars(canvas, w, h, c, Scene.fade(c, elapsed));
         if (shown) postInvalidateDelayed(frame.phase == Scene.Phase.SLEEP ? SLEEP_FRAME_MS : COLOUR_FRAME_MS);
+    }
+
+    /** The bedtime countdown on the night light: lit stars still to go, outlines for the hours already slept. */
+    private void drawStars(Canvas canvas, int w, int h, Config c, double fade) {
+        int n = Stars.count(c);
+        if (n == 0 || fade <= 0) return;
+        Calendar now = Calendar.getInstance();
+        long timeOfDay = ((now.get(Calendar.HOUR_OF_DAY) * 60L + now.get(Calendar.MINUTE)) * 60
+            + now.get(Calendar.SECOND)) * 1000L;
+        int out = n - Stars.lit(c, timeOfDay);
+        float size = Math.min(w / (n * 1.5f), h * 0.12f);
+        float gap = size * 0.5f;
+        float x = (w - (n * size + (n - 1) * gap)) / 2 + size / 2;
+        float y = h * 0.5f;
+        // As dim as the night light allows, so the stars never light up the room.
+        double k = Scene.clamp(0.3 + c.warmBrightness) * fade;
+        for (int i = 0; i < n; i++, x += size + gap) {
+            starPath(x, y, size / 2);
+            if (i < out) {
+                starPaint.setStyle(Paint.Style.STROKE);
+                starPaint.setStrokeWidth(Math.max(1, size * 0.05f));
+                starPaint.setColor(0xFF000000 | Scene.scale(STAR_OUT, k * 0.6));
+            } else {
+                starPaint.setStyle(Paint.Style.FILL);
+                starPaint.setColor(0xFF000000 | Scene.scale(STAR_LIT, k));
+            }
+            canvas.drawPath(star, starPaint);
+        }
+    }
+
+    private void starPath(float cx, float cy, float r) {
+        star.reset();
+        for (int i = 0; i < 10; i++) {
+            double a = Math.PI * i / 5 - Math.PI / 2;
+            float radius = i % 2 == 0 ? r : r * 0.45f;
+            float px = cx + (float) (Math.cos(a) * radius);
+            float py = cy + (float) (Math.sin(a) * radius);
+            if (i == 0) star.moveTo(px, py);
+            else star.lineTo(px, py);
+        }
+        star.close();
     }
 
     @Override protected void onWindowVisibilityChanged(int visibility) {

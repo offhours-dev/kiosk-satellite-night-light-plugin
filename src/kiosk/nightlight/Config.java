@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 package kiosk.nightlight;
 
+import java.util.Locale;
 import java.util.Map;
 
 /** An immutable snapshot of the plugin settings. Read from any thread. */
@@ -18,6 +19,10 @@ final class Config {
     final Sound sound;
     final double volume;
     final SleepSound sleepSound;
+    final boolean countdown;
+    /** Bed and up times in ms since local midnight. */
+    final long bedMs;
+    final long wakeMs;
 
     Config(Map<String, Object> s) {
         colourMs = (long) (number(s, "colourMinutes", 30, 1, 240) * 60_000L);
@@ -43,6 +48,9 @@ final class Config {
             case "Ocean waves": sleepSound = SleepSound.WAVES; break;
             default: sleepSound = SleepSound.SILENCE;
         }
+        countdown = bool(s, "countdown", false);
+        bedMs = time(s, "bedTime", "19:00");
+        wakeMs = time(s, "wakeTime", "07:00");
     }
 
     static double number(Map<String, Object> s, String key, double fallback, double min, double max) {
@@ -55,6 +63,39 @@ final class Config {
     static String string(Map<String, Object> s, String key, String fallback) {
         Object v = s == null ? null : s.get(key);
         return v instanceof String ? (String) v : fallback;
+    }
+
+    static boolean bool(Map<String, Object> s, String key, boolean fallback) {
+        Object v = s == null ? null : s.get(key);
+        return v instanceof Boolean ? (Boolean) v : fallback;
+    }
+
+    static long time(Map<String, Object> s, String key, String fallback) {
+        long t = parseTime(string(s, key, fallback));
+        return t >= 0 ? t : parseTime(fallback);
+    }
+
+    /** Parses a time of day such as 19:00, 7:30pm or 7pm into ms since midnight, or -1. */
+    static long parseTime(String v) {
+        if (v == null) return -1;
+        v = v.trim().toLowerCase(Locale.ROOT).replace(" ", "");
+        boolean pm = v.endsWith("pm");
+        boolean am = v.endsWith("am");
+        if (pm || am) v = v.substring(0, v.length() - 2);
+        String[] parts = v.split("[:.]");
+        if (parts.length > 2) return -1;
+        try {
+            int hour = Integer.parseInt(parts[0]);
+            int minute = parts.length == 2 ? Integer.parseInt(parts[1]) : 0;
+            if (am || pm) {
+                if (hour < 1 || hour > 12) return -1;
+                hour = hour % 12 + (pm ? 12 : 0);
+            }
+            if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return -1;
+            return (hour * 60L + minute) * 60_000L;
+        } catch (NumberFormatException e) {
+            return -1;
+        }
     }
 
     /** Parses #RRGGBB (or #AARRGGBB, alpha ignored) into 0xRRGGBB. */

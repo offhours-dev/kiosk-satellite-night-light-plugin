@@ -7,6 +7,7 @@ When the screensaver starts it shows a dim, warm night light. Press the **Go to 
 - **Music made on the device.** A music box lullaby, dreamy pads or ocean waves, composed as it plays so it never repeats exactly. It slows down a little as bedtime goes on. There are no audio files and nothing to download.
 - **Soft colours.** A slow glow drifting through Rainbow, Ocean, Sunset, Aurora or Candy colours. It dims gradually as the show goes on, so the sleep light is not a jump.
 - **Warm sleep light.** Amber by default, with adjustable colour and brightness. The sound can fade to silence, keep playing quietly or turn into ocean waves.
+- **Bedtime countdown.** Optionally shows a row of stars on the night light, about one per hour between bed time and up time (at most 10). They go out one by one through the night, so a child can see how long until it is time to get up.
 - **Wakes gently.** If the screen is tapped mid-show and the night light comes back within an hour, the show carries on where it was.
 
 ## Using it
@@ -21,6 +22,7 @@ Either way works:
 | **Start night light** | Switches to the warm night light, fading out the show if it is playing |
 | **Go to sleep** | Starts the colours and music, switching to the night light first if needed |
 | **End go to sleep** | Fades the show back to the warm night light now |
+| **Go to sleep or end** | Starts the show, or ends it if it is playing. Handy for a single clap gesture |
 | **Stop night light** | Dismisses it and restores your usual screensaver |
 
 While the night light shows, a dim button in the bottom right corner switches between **Go to sleep** and **End**. Touches anywhere else still go to Kiosk Satellite, so they dismiss the screensaver as usual.
@@ -50,6 +52,9 @@ Kiosk Satellite still controls when the screensaver starts and stops, so check t
 | Sound | Music | Music box lullaby |
 | Sound | Volume | 40% |
 | Sound | During the sleep light | Fade to silence |
+| Countdown | Bedtime countdown | Off |
+| Countdown | Bed time | 19:00 |
+| Countdown | Up time | 07:00 |
 
 Settings save automatically and apply straight away, even while the night light is showing.
 

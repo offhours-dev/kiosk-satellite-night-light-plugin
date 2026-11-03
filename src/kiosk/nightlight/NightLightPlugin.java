@@ -6,6 +6,7 @@ import android.view.View;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -29,6 +30,8 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
     static final String READY = "Ready. Choose Night Light under Screensaver mode, or run the Start night light action.";
     /** KS can rebuild the view (rotation, UI scale), so wait a moment before treating it as dismissed. */
     static final long END_GRACE_MS = 2500;
+    /** The tap that runs a corner gesture also dismisses the screensaver, so look again after it has gone. */
+    static final long TAP_SETTLE_MS = 800;
 
     private volatile PluginHost host;
     private volatile Config config = new Config(Collections.emptyMap());
@@ -77,24 +80,41 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
             case "goToSleep": goToSleep(h); break;
             case "stopNightLight": stopNightLight(h); break;
             case "sleepNow": endShow(h); break;
+            case "toggleSleep": toggleShow(); break;
             default: throw new IllegalArgumentException("Unknown action: " + command);
         }
     }
 
     private void startNightLight(PluginHost h) {
         session.endShow(config.colourMs);
-        if (!session.live()) showScreensaver(h);
+        ensureShown(h);
     }
 
     private void goToSleep(PluginHost h) {
         session.startShow();
         h.status("Go to sleep show playing.", false);
-        if (!session.live()) showScreensaver(h);
+        ensureShown(h);
     }
 
     private void endShow(PluginHost h) {
         session.endShow(config.colourMs);
         h.status("Fading back to the night light.", false);
+    }
+
+    /** Shows the night light unless it is on screen, checking again once a gesture's tap has dismissed it. */
+    private synchronized void ensureShown(PluginHost h) {
+        if (!onScreen()) { showScreensaver(h); return; }
+        if (timer == null) return;
+        try {
+            timer.schedule(() -> { if (!onScreen()) showScreensaver(h); }, TAP_SETTLE_MS, TimeUnit.MILLISECONDS);
+        } catch (RejectedExecutionException stopping) {
+            // The plugin is stopping.
+        }
+    }
+
+    /** True while the screensaver view is up and not on its way out. */
+    private synchronized boolean onScreen() {
+        return session.live() && views > 0;
     }
 
     private void showScreensaver(PluginHost h) {
