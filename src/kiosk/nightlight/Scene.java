@@ -24,8 +24,8 @@ final class Scene {
         double tempo = 1;
     }
 
-    /** The screen fades up from black at the start, so the screensaver never flashes on. */
-    static final long FADE_IN_MS = 4000;
+    /** The show grows out of the sleep light at the start, so pressing Go to sleep never jumps. */
+    static final long FADE_IN_MS = 8000;
     static final long SOUND_FADE_IN_MS = 6000;
 
     static Phase phase(Config c, long elapsed) {
@@ -47,7 +47,7 @@ final class Scene {
         out.phase = phase(c, elapsed);
         int warm = scale(c.warmColor, c.warmBrightness);
         int warmEdge = scale(c.warmColor, c.warmBrightness * 0.72);
-        double p = fade(c, elapsed);
+        double p = Math.max(fade(c, elapsed), 1 - smooth(clamp(elapsed / (double) FADE_IN_MS)));
         if (out.phase == Phase.SLEEP) {
             out.centre = warm;
             out.edge = warmEdge;
@@ -58,7 +58,7 @@ final class Scene {
         double t = elapsed / 1000.0;
         // The show winds down: a little dimmer by the end, so the sleep light is not a jump.
         double windDown = clamp(elapsed / (double) Math.max(1, c.colourMs));
-        double bright = c.colourBrightness * (1 - 0.35 * windDown) * smooth(clamp(elapsed / (double) FADE_IN_MS));
+        double bright = c.colourBrightness * (1 - 0.35 * windDown);
         double pos = t / c.secondsPerColour;
         int centre = scale(colourAt(c.palette, pos), bright);
         int edge = scale(colourAt(c.palette, pos + 0.6), bright * 0.38);

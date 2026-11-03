@@ -9,8 +9,9 @@ import android.graphics.Shader;
 import android.view.View;
 
 /**
- * The screensaver: a soft glow that drifts slowly through the palette, then settles into the warm sleep light.
- * It redraws about 15 times a second during the colour show and every couple of seconds once it is steady.
+ * The screensaver: the warm night light, or during the go to sleep show a soft glow that drifts slowly through the
+ * palette before settling back. It redraws about 15 times a second during the show and every couple of seconds
+ * once it is steady.
  */
 final class GlowView extends View {
     interface Source {
@@ -20,6 +21,7 @@ final class GlowView extends View {
 
     private static final long COLOUR_FRAME_MS = 66;
     private static final long SLEEP_FRAME_MS = 2000;
+    private static final long FADE_UP_MS = 4000;
 
     private final Source source;
     private final Paint paint = new Paint();
@@ -61,11 +63,15 @@ final class GlowView extends View {
     @Override protected void onAttachedToWindow() {
         super.onAttachedToWindow();
         shown = getWindowVisibility() == VISIBLE;
+        // Fade up from black, so the screensaver never flashes on.
+        setAlpha(0f);
+        animate().alpha(1f).setDuration(FADE_UP_MS).start();
         invalidate();
     }
 
     @Override protected void onDetachedFromWindow() {
         shown = false;
+        animate().cancel();
         super.onDetachedFromWindow();
     }
 }

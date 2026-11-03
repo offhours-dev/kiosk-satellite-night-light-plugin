@@ -7,13 +7,14 @@
   "minAndroidSdk": 24,
   "minAppVersion": "2026.10.45",
   "entryClass": "kiosk.nightlight.NightLightPlugin",
-  "description": "A bedtime night light for a child's room. As a screensaver it plays gentle sleepy music while the screen drifts through soft colours, then fades to a dim warm light for the rest of the night.",
+  "description": "A bedtime night light for a child's room. As a screensaver it shows a dim warm light. Press Go to sleep for gentle sleepy music while the screen drifts through soft colours, which then fades back to the warm light.",
   "author": "heazlewood",
   "license": "Apache-2.0",
   "capabilities": [
     "screensaver",
     "screensaver.mode",
-    "host.control"
+    "host.control",
+    "overlay"
   ],
   "icon": "icon.png",
   "settings": [
@@ -27,7 +28,7 @@
       "step": 5,
       "unit": "min",
       "group": "Colours",
-      "description": "How long the colours and music play before the night light fades to the warm sleep light."
+      "description": "How long the go to sleep show's colours and music play before they fade back to the warm sleep light."
     },
     {
       "key": "palette",
@@ -69,7 +70,7 @@
       "step": 1,
       "unit": "min",
       "group": "Sleep light",
-      "description": "How long the colours and music take to fade into the sleep light."
+      "description": "How long the colours and music take to fade back into the sleep light, at the end of the show or after End."
     },
     {
       "key": "warmColor",
@@ -89,7 +90,7 @@
       "step": 1,
       "unit": "%",
       "group": "Sleep light",
-      "description": "How bright the sleep light glows for the rest of the night."
+      "description": "How bright the warm night light glows."
     },
     {
       "key": "sound",
@@ -98,7 +99,7 @@
       "default": "Music box lullaby",
       "options": ["Music box lullaby", "Dreamy pads", "Ocean waves", "No sound"],
       "group": "Sound",
-      "description": "What plays during the colour show. The music is made up as it plays, so it never repeats exactly."
+      "description": "What plays during the go to sleep show. The music is made up as it plays, so it never repeats exactly."
     },
     {
       "key": "volume",
@@ -119,7 +120,7 @@
       "default": "Fade to silence",
       "options": ["Fade to silence", "Keep playing quietly", "Ocean waves"],
       "group": "Sound",
-      "description": "What happens to the sound once the sleep light comes on."
+      "description": "What plays while the warm night light shows, including when the screensaver first starts."
     }
   ],
   "commands": [
@@ -128,8 +129,12 @@
       "title": "Start night light"
     },
     {
+      "id": "goToSleep",
+      "title": "Go to sleep"
+    },
+    {
       "id": "sleepNow",
-      "title": "Skip to sleep light"
+      "title": "End go to sleep"
     },
     {
       "id": "stopNightLight",

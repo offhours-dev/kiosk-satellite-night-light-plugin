@@ -45,10 +45,11 @@ public final class NightLightTest {
     static void scene() {
         Config c = new Config(Collections.emptyMap());
         Scene.Frame f = Scene.frame(c, 0, null);
-        check(f.centre == 0 && f.edge == 0, "starts from black");
+        check(f.centre == Scene.scale(0xFF9440, 0.25), "the show grows out of the sleep light");
         check(f.phase == Scene.Phase.COLOURS, "starts with colours");
+        check(Scene.frame(c, Session.NIGHT, null).phase == Scene.Phase.SLEEP, "the night light is the sleep light");
         Scene.frame(c, 60_000, f);
-        check(f.centre != 0, "colours show after the fade in");
+        check(f.centre != Scene.scale(0xFF9440, 0.25), "colours show after the fade in");
         int first = Scene.frame(c, 60_000, null).centre;
         int later = Scene.frame(c, 75_000, null).centre;
         check(first != later, "colours change over time");
@@ -73,6 +74,8 @@ public final class NightLightTest {
         check(m.music > 0.99 && m.waves == 0, "music during the show");
         Scene.mix(c, c.colourMs + c.fadeMs + 1, m);
         check(m.music == 0 && m.waves == 0, "silence during sleep by default");
+        Scene.mix(c, Session.NIGHT, m);
+        check(m.music == 0 && m.waves == 0, "the night light is silent by default");
         check(m.tempo < 1 && m.tempo >= 0.85, "music slows down");
 
         Map<String, Object> s = new HashMap<>();
@@ -91,26 +94,35 @@ public final class NightLightTest {
 
     static void session() {
         long[] now = {1_000_000};
+        long show = 30 * 60_000;
         Session s = new Session(() -> now[0]);
-        check(s.elapsed() == 0, "nothing before the first night");
+        check(s.elapsed() == Session.NIGHT, "nothing before the first night");
         s.shown();
+        check(s.elapsed() == Session.NIGHT && !s.showing(show), "opens on the night light");
+        s.endShow(show);
+        check(s.elapsed() == Session.NIGHT, "ending no show does nothing");
+        s.startShow();
+        check(s.elapsed() == 0 && s.showing(show), "go to sleep starts the show");
         now[0] += 10 * 60_000;
         check(s.elapsed() == 10 * 60_000, "elapsed counts");
         s.ended();
         now[0] += 5 * 60_000;
         s.shown();
         check(s.elapsed() == 15 * 60_000, "a quick wake carries on");
+        s.endShow(show);
+        check(s.elapsed() == show && !s.showing(show), "end jumps to the fade");
+        now[0] += 1000;
+        s.endShow(show);
+        check(s.elapsed() == show + 1000, "end never goes back");
         s.ended();
         now[0] += Session.RESUME_MS + 1;
         s.shown();
-        check(s.elapsed() == 0, "the next night starts over");
-        now[0] += 1000;
-        s.skipTo(30 * 60_000);
-        check(s.elapsed() == 30 * 60_000, "skip jumps forward");
-        s.skipTo(10);
-        check(s.elapsed() == 30 * 60_000, "skip never goes back");
-        s.restart();
-        check(s.elapsed() == 0, "restart");
+        check(s.elapsed() == Session.NIGHT, "the next night opens on the night light");
+        s.ended();
+        now[0] += Session.RESUME_MS + 1;
+        s.startShow();
+        s.shown();
+        check(s.elapsed() == 0 && s.showing(show), "go to sleep before the screensaver keeps the show");
     }
 
     static void synth() {
@@ -174,7 +186,18 @@ public final class NightLightTest {
         check("nightlight".equals(host.screensaverKey) && host.factory != null, "publishes the screensaver");
         check(NightLightPlugin.MODE.equals("plugin:night-light:nightlight"), "mode id");
 
+        check(!plugin.showing(), "not showing before go to sleep");
+        plugin.execute("goToSleep", Collections.emptyMap());
+        check(plugin.showing(), "go to sleep starts the show");
+        check(host.commands.equals(java.util.Arrays.asList("setScreensaverMode", "startScreensaver")), "go to sleep shows the screensaver: " + host.commands);
+        plugin.toggleShow();
+        check(!plugin.showing(), "the button ends the show");
+        plugin.toggleShow();
+        check(plugin.showing(), "and starts it again");
+
+        host.commands.clear();
         plugin.execute("startNightLight", Collections.emptyMap());
+        check(!plugin.showing(), "start night light ends the show");
         check(host.commands.equals(java.util.Arrays.asList("setScreensaverMode", "startScreensaver")), "start switches and starts: " + host.commands);
         check(NightLightPlugin.MODE.equals(host.lastArgs.get("setScreensaverMode").get("mode")), "start picks the night light");
 
@@ -186,8 +209,9 @@ public final class NightLightTest {
         s.put("colourMinutes", 20);
         plugin.configure(s);
         check(plugin.config().colourMs == 20 * 60_000L, "configure applies");
+        plugin.execute("goToSleep", Collections.emptyMap());
         plugin.execute("sleepNow", Collections.emptyMap());
-        check(plugin.elapsed() == 20 * 60_000L, "skip to sleep starts the fade");
+        check(plugin.elapsed() == 20 * 60_000L, "end go to sleep starts the fade");
 
         boolean threw = false;
         try { plugin.execute("nope", Collections.emptyMap()); } catch (IllegalArgumentException e) { threw = true; }
