@@ -1,0 +1,383 @@
+// SPDX-License-Identifier: Apache-2.0
+package kiosk.nightlight;
+
+import java.util.Random;
+
+/**
+ * A small generative lullaby: a music box (or soft bell) melody in 3/4 over warm pads and a soft bass, plus an
+ * ocean-waves layer. Every phrase is new but follows a repeating motif, so it sounds composed rather than random.
+ * Everything is synthesised here, so there are no audio files and nothing to license.
+ *
+ * Pure Java with no Android classes, so tests can render it on the desktop. Not thread-safe: call it from the audio
+ * thread only.
+ */
+final class LullabySynth {
+    private static final int TABLE = 4096;
+    private static final float[] SIN = new float[TABLE];
+    static {
+        for (int i = 0; i < TABLE; i++) SIN[i] = (float) Math.sin(2 * Math.PI * i / TABLE);
+    }
+
+    /** Key of F major, the melody's major pentatonic over two octaves. */
+    private static final int KEY = 65;
+    private static final int[] PENTA = {0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24};
+    /** Chord roots relative to the key and whether each is minor: I vi IV V I iii IV V, two bars each. */
+    private static final int[] ROOTS = {0, 9, 5, 7, 0, 4, 5, 7};
+    private static final boolean[] MINOR = {false, true, false, false, false, true, false, false};
+    private static final int EIGHTHS_PER_BAR = 6;
+
+    private final int rate;
+    private final Random rnd;
+
+    // Levels, smoothed per sample so changes never click.
+    private double masterTarget, musicTarget, wavesTarget;
+    private double master, music, waves;
+    private final double smoothK;
+    private double tempo = 1;
+    private boolean dreamy;
+
+    // Song position.
+    private long step = -1;
+    private double untilNextStep;
+    private final boolean[] motifRhythm = new boolean[12];
+    private final int[] motifSteps = new int[12];
+    private int melodyIndex = 5;
+    private int motifStart = 5;
+
+    // Voices.
+    private final Bell[] bells = new Bell[24];
+    private final Pad[] pads = new Pad[12];
+    private double lfoPhase;
+
+    // Effects.
+    private final float[] delay;
+    private int delayPos;
+    private double delayDamp;
+    private double bellLow;
+
+    // Waves.
+    private double wavePhaseA, wavePhaseB = 0.37, brown, waveLow, waveCoef;
+    private int waveCounter;
+
+    LullabySynth(int sampleRate, long seed) {
+        rate = sampleRate;
+        rnd = new Random(seed);
+        smoothK = 1 - Math.exp(-1.0 / (0.3 * rate));
+        delay = new float[(int) (0.42 * rate)];
+        for (int i = 0; i < bells.length; i++) bells[i] = new Bell();
+        for (int i = 0; i < pads.length; i++) pads[i] = new Pad();
+        newMotif();
+    }
+
+    /** Dreamy pads: slower, lower and softer than the music box. */
+    void setDreamy(boolean dreamy) {
+        this.dreamy = dreamy;
+    }
+
+    /** master, music and waves from 0 to 1; tempo multiplies the speed, 0.5 to 1.5. */
+    void setLevels(double master, double music, double waves, double tempo) {
+        masterTarget = clamp(master);
+        musicTarget = clamp(music);
+        wavesTarget = clamp(waves);
+        this.tempo = Math.max(0.5, Math.min(1.5, tempo));
+    }
+
+    /** Jump the smoothed levels straight to their targets, for the first buffer. */
+    void settle() {
+        master = masterTarget;
+        music = musicTarget;
+        waves = wavesTarget;
+    }
+
+    double currentMaster() {
+        return master;
+    }
+
+    void render(short[] out, int offset, int count) {
+        double eighth = rate * 60.0 / (bpm() * tempo) / 2;
+        for (int n = 0; n < count; n++) {
+            master += (masterTarget - master) * smoothK;
+            music += (musicTarget - music) * smoothK;
+            waves += (wavesTarget - waves) * smoothK;
+
+            if (--untilNextStep <= 0) {
+                step++;
+                untilNextStep += eighth * (1 + (rnd.nextDouble() - 0.5) * 0.03);
+                if (music > 1e-4 || musicTarget > 1e-4) onStep();
+            }
+
+            double mixed = 0;
+            if (music > 1e-4) mixed += music * renderMusic();
+            if (waves > 1e-4) mixed += waves * renderWaves();
+            double x = mixed * master * 1.6;
+            // Gentle soft clip, then leave headroom.
+            if (x > 3) x = 3; else if (x < -3) x = -3;
+            x = x * (27 + x * x) / (27 + 9 * x * x);
+            int s = (int) Math.round(x * 0.85 * 32767);
+            out[offset + n] = (short) Math.max(-32767, Math.min(32767, s));
+        }
+    }
+
+    private double bpm() {
+        return dreamy ? 50 : 64;
+    }
+
+    // ---- Composition ------------------------------------------------------------------------------------------
+
+    private void onStep() {
+        int bar = (int) (step / EIGHTHS_PER_BAR);
+        int slot = (int) (step % EIGHTHS_PER_BAR);
+        int chord = (bar / 2) % ROOTS.length;
+        int section = bar % 8;
+        if (slot == 0) {
+            if (bar % 8 == 0) newMotif();
+            if (bar % 2 == 0) changePads(chord);
+            bass(chord);
+        }
+        int motifSlot = (section % 2) * EIGHTHS_PER_BAR + slot;
+        boolean strong = slot % 2 == 0;
+        if (section < 4) {
+            // Bars 0-3: the motif, then the motif again over the next chord.
+            if (motifSlot == 0) melodyIndex = snap(section < 2 ? motifStart : motifStart + 1, chord);
+            if (!motifRhythm[motifSlot]) return;
+            if (motifSlot > 0) melodyIndex = range(melodyIndex + motifSteps[motifSlot]);
+            if (strong) melodyIndex = snap(melodyIndex, chord);
+            bell(melodyIndex, slot == 0 ? 0.75 : 0.55);
+        } else if (section < 6) {
+            // Bars 4-5: a freer answer.
+            double chance = slot == 0 ? 1 : strong ? 0.55 : 0.15;
+            if (dreamy) chance *= 0.7;
+            if (rnd.nextDouble() > chance) return;
+            melodyIndex = range(melodyIndex + walk());
+            if (strong) melodyIndex = snap(melodyIndex, chord);
+            bell(melodyIndex, slot == 0 ? 0.7 : 0.5);
+        } else {
+            // Bars 6-7: settle on a long chord tone and rest.
+            if (section == 6 && (slot == 0 || slot == 2 || (slot == 4 && rnd.nextBoolean()))) {
+                melodyIndex = range(melodyIndex + (melodyIndex > 5 ? -1 : 1));
+                if (strong) melodyIndex = snap(melodyIndex, chord);
+                bell(melodyIndex, 0.55);
+            } else if (section == 7 && slot == 0) {
+                melodyIndex = snap(range(melodyIndex - 1), chord);
+                bell(melodyIndex, 0.6);
+            }
+        }
+    }
+
+    private void newMotif() {
+        for (int i = 0; i < motifRhythm.length; i++) {
+            int slot = i % EIGHTHS_PER_BAR;
+            double chance = slot == 0 ? 1 : slot == 2 ? 0.6 : slot == 4 ? 0.7 : 0.18;
+            if (dreamy && slot != 0) chance *= 0.6;
+            motifRhythm[i] = rnd.nextDouble() < chance;
+            motifSteps[i] = walk();
+        }
+        motifStart = 3 + rnd.nextInt(4);
+    }
+
+    private int walk() {
+        int[] choices = {-2, -1, -1, 0, 1, 1, 2};
+        int d = choices[rnd.nextInt(choices.length)];
+        // Drift back towards the middle of the range.
+        if (melodyIndex > 7 && d > 0) d = -d;
+        if (melodyIndex < 3 && d < 0) d = -d;
+        return d;
+    }
+
+    private static int range(int index) {
+        return Math.max(1, Math.min(PENTA.length - 2, index));
+    }
+
+    /** The nearest pentatonic index whose note belongs to the chord. */
+    private static int snap(int index, int chord) {
+        index = range(index);
+        for (int d = 0; d < PENTA.length; d++) {
+            if (index - d >= 0 && inChord(PENTA[index - d], chord)) return range(index - d);
+            if (index + d < PENTA.length && inChord(PENTA[index + d], chord)) return range(index + d);
+        }
+        return index;
+    }
+
+    private static boolean inChord(int semis, int chord) {
+        int pc = ((semis - ROOTS[chord]) % 12 + 12) % 12;
+        return pc == 0 || pc == 7 || pc == (MINOR[chord] ? 3 : 4);
+    }
+
+    private int melodyMidi(int index) {
+        return KEY + PENTA[index] - (dreamy ? 12 : 0);
+    }
+
+    // ---- Voices -----------------------------------------------------------------------------------------------
+
+    private void bell(int index, double velocity) {
+        Bell b = free();
+        b.start(midiHz(melodyMidi(index)), velocity * (0.85 + 0.3 * rnd.nextDouble()) * (dreamy ? 0.32 : 0.30),
+            dreamy ? 2.6 : 1.5, dreamy ? 0.04 : 0.004, dreamy, false);
+    }
+
+    private void bass(int chord) {
+        int midi = KEY - 24 + ROOTS[chord];
+        if (midi > 52) midi -= 12;
+        free().start(midiHz(midi), dreamy ? 0.09 : 0.11, 2.4, 0.02, true, true);
+    }
+
+    private Bell free() {
+        Bell quietest = bells[0];
+        for (Bell b : bells) {
+            if (!b.active) return b;
+            if (b.level() < quietest.level()) quietest = b;
+        }
+        return quietest;
+    }
+
+    private void changePads(int chord) {
+        for (Pad p : pads) p.target = 0;
+        int third = MINOR[chord] ? 3 : 4;
+        int[] tones = {0, third, 7};
+        double level = dreamy ? 0.075 : 0.045;
+        for (int tone : tones) {
+            int midi = KEY - 12 + ROOTS[chord] + tone;
+            while (midi >= 64) midi -= 12;
+            while (midi < 52) midi += 12;
+            Pad p = freePad();
+            p.start(midiHz(midi), level);
+        }
+    }
+
+    private Pad freePad() {
+        Pad quietest = pads[0];
+        for (Pad p : pads) {
+            if (p.amp < 1e-4 && p.target == 0) return p;
+            if (p.amp < quietest.amp) quietest = p;
+        }
+        return quietest;
+    }
+
+    private double renderMusic() {
+        lfoPhase += 0.18 / rate;
+        if (lfoPhase >= 1) lfoPhase -= 1;
+        double tremolo = 1 - 0.12 * (0.5 + 0.5 * sin(lfoPhase));
+
+        double bellSum = 0;
+        double bassSum = 0;
+        for (Bell b : bells) {
+            if (!b.active) continue;
+            if (b.bass) bassSum += b.next();
+            else bellSum += b.next();
+        }
+        double padSum = 0;
+        for (Pad p : pads) padSum += p.next();
+
+        // Soften the bells a touch, then send them to the echo.
+        bellLow += (bellSum - bellLow) * 0.55;
+        double echo = delay[delayPos];
+        delayDamp += (echo - delayDamp) * 0.35;
+        delay[delayPos] = (float) (bellLow + delayDamp * 0.38);
+        if (++delayPos >= delay.length) delayPos = 0;
+
+        return bellLow + echo * 0.3 + bassSum + padSum * tremolo;
+    }
+
+    private double renderWaves() {
+        // Two slow swells that drift in and out of step, like waves on a beach.
+        wavePhaseA += 1.0 / (9.3 * rate);
+        wavePhaseB += 1.0 / (13.7 * rate);
+        if (wavePhaseA >= 1) wavePhaseA -= 1;
+        if (wavePhaseB >= 1) wavePhaseB -= 1;
+        double a = 0.5 - 0.5 * cos(wavePhaseA);
+        double b = 0.5 - 0.5 * cos(wavePhaseB);
+        double env = 0.08 + 0.55 * a * a + 0.37 * b * b;
+        if (--waveCounter <= 0) {
+            waveCounter = 64;
+            double cutoff = 250 + 1600 * env;
+            waveCoef = 1 - Math.exp(-2 * Math.PI * cutoff / rate);
+        }
+        double white = rnd.nextDouble() * 2 - 1;
+        brown = brown * 0.996 + white * 0.04;
+        waveLow += (white - waveLow) * waveCoef;
+        return (waveLow * 0.9 + brown * 0.8) * env * 0.55;
+    }
+
+    private static double midiHz(int midi) {
+        return 440 * Math.pow(2, (midi - 69) / 12.0);
+    }
+
+    private static double sin(double cycles) {
+        return SIN[(int) (cycles * TABLE) & (TABLE - 1)];
+    }
+
+    private static double cos(double cycles) {
+        return sin(cycles + 0.25);
+    }
+
+    private static double clamp(double x) {
+        return Double.isNaN(x) ? 0 : x < 0 ? 0 : x > 1 ? 1 : x;
+    }
+
+    /** A plucked note: music-box tine, soft bell or bass. */
+    private final class Bell {
+        boolean active;
+        boolean bass;
+        double f, amp, attackStep, attack;
+        double p1, p2, p3, p4;
+        double e1, e2, e3, e4, m1, m2, m3, m4;
+        double w2, w3, w4;
+
+        void start(double hz, double velocity, double decaySeconds, double attackSeconds, boolean soft, boolean isBass) {
+            active = true;
+            bass = isBass;
+            f = hz / rate;
+            amp = velocity;
+            attack = 0;
+            attackStep = 1.0 / Math.max(1, attackSeconds * rate);
+            p1 = p2 = p3 = p4 = 0;
+            e1 = e2 = e3 = e4 = 1;
+            m1 = Math.exp(-1 / (decaySeconds * rate));
+            m2 = Math.exp(-1 / (decaySeconds * 0.45 * rate));
+            m3 = Math.exp(-1 / (decaySeconds * 0.22 * rate));
+            m4 = Math.exp(-1 / (0.03 * rate));
+            if (isBass) { w2 = 0.12; w3 = 0; w4 = 0; }
+            else if (soft) { w2 = 0.12; w3 = 0.03; w4 = 0; }
+            else { w2 = 0.24; w3 = 0.07; w4 = 0.035; }
+        }
+
+        double level() {
+            return amp * e1;
+        }
+
+        double next() {
+            if (attack < 1) attack = Math.min(1, attack + attackStep);
+            p1 += f; p2 += f * 2; p3 += f * 4.03; p4 += f * 6.3;
+            if (p1 >= 1) p1 -= 1;
+            if (p2 >= 1) p2 -= 1;
+            if (p3 >= 1) p3 -= Math.floor(p3);
+            if (p4 >= 1) p4 -= Math.floor(p4);
+            double v = sin(p1) * e1 + w2 * sin(p2) * e2 + w3 * sin(p3) * e3 + w4 * sin(p4) * e4;
+            e1 *= m1; e2 *= m2; e3 *= m3; e4 *= m4;
+            if (e1 < 1e-4) active = false;
+            return v * amp * attack;
+        }
+    }
+
+    /** A sustained chord tone with a slow swell and a slight chorus. */
+    private final class Pad {
+        double f, amp, target, pA, pB, pC;
+
+        void start(double hz, double level) {
+            f = hz / rate;
+            target = level;
+        }
+
+        double next() {
+            // About 2.5 s to swell in and 3 s to fade out.
+            double k = target > amp ? 1.0 / (2.5 * rate) : 1.0 / (3.0 * rate);
+            amp += (target - amp) * k * 4;
+            if (amp < 1e-5 && target == 0) { amp = 0; return 0; }
+            pA += f * 0.9985; pB += f * 1.0015; pC += f * 2;
+            if (pA >= 1) pA -= 1;
+            if (pB >= 1) pB -= 1;
+            if (pC >= 1) pC -= 1;
+            return amp * (0.5 * sin(pA) + 0.5 * sin(pB) + 0.1 * sin(pC));
+        }
+    }
+}

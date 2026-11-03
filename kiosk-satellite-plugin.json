@@ -1,0 +1,144 @@
+{
+  "schemaVersion": 1,
+  "id": "night-light",
+  "name": "Night Light",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "minAndroidSdk": 24,
+  "minAppVersion": "2026.10.45",
+  "entryClass": "kiosk.nightlight.NightLightPlugin",
+  "description": "A bedtime night light for a child's room. As a screensaver it plays gentle sleepy music while the screen drifts through soft colours, then fades to a dim warm light for the rest of the night.",
+  "author": "heazlewood",
+  "license": "Apache-2.0",
+  "capabilities": [
+    "screensaver",
+    "screensaver.mode",
+    "host.control"
+  ],
+  "icon": "icon.png",
+  "settings": [
+    {
+      "key": "colourMinutes",
+      "type": "number",
+      "title": "Colour show length",
+      "default": 30,
+      "min": 5,
+      "max": 120,
+      "step": 5,
+      "unit": "min",
+      "group": "Colours",
+      "description": "How long the colours and music play before the night light fades to the warm sleep light."
+    },
+    {
+      "key": "palette",
+      "type": "select",
+      "title": "Colours",
+      "default": "Rainbow",
+      "options": ["Rainbow", "Ocean", "Sunset", "Aurora", "Candy"],
+      "group": "Colours",
+      "description": "The set of colours the screen drifts through."
+    },
+    {
+      "key": "colourSpeed",
+      "type": "select",
+      "title": "Colour speed",
+      "default": "Slow",
+      "options": ["Very slow", "Slow", "Gentle"],
+      "group": "Colours",
+      "description": "How quickly one colour melts into the next."
+    },
+    {
+      "key": "colourBrightness",
+      "type": "number",
+      "title": "Colour brightness",
+      "default": 70,
+      "min": 10,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "group": "Colours",
+      "description": "How bright the colours are. They also dim a little as the show goes on."
+    },
+    {
+      "key": "fadeMinutes",
+      "type": "number",
+      "title": "Fade to sleep light",
+      "default": 3,
+      "min": 1,
+      "max": 15,
+      "step": 1,
+      "unit": "min",
+      "group": "Sleep light",
+      "description": "How long the colours and music take to fade into the sleep light."
+    },
+    {
+      "key": "warmColor",
+      "type": "color",
+      "title": "Sleep light colour",
+      "default": "#FF9440",
+      "group": "Sleep light",
+      "description": "A warm orange or amber is kindest to sleep."
+    },
+    {
+      "key": "warmBrightness",
+      "type": "number",
+      "title": "Sleep light brightness",
+      "default": 25,
+      "min": 2,
+      "max": 60,
+      "step": 1,
+      "unit": "%",
+      "group": "Sleep light",
+      "description": "How bright the sleep light glows for the rest of the night."
+    },
+    {
+      "key": "sound",
+      "type": "select",
+      "title": "Music",
+      "default": "Music box lullaby",
+      "options": ["Music box lullaby", "Dreamy pads", "Ocean waves", "No sound"],
+      "group": "Sound",
+      "description": "What plays during the colour show. The music is made up as it plays, so it never repeats exactly."
+    },
+    {
+      "key": "volume",
+      "type": "number",
+      "title": "Volume",
+      "default": 40,
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "group": "Sound",
+      "description": "Music volume, on top of the device's media volume."
+    },
+    {
+      "key": "sleepSound",
+      "type": "select",
+      "title": "During the sleep light",
+      "default": "Fade to silence",
+      "options": ["Fade to silence", "Keep playing quietly", "Ocean waves"],
+      "group": "Sound",
+      "description": "What happens to the sound once the sleep light comes on."
+    }
+  ],
+  "commands": [
+    {
+      "id": "startNightLight",
+      "title": "Start night light"
+    },
+    {
+      "id": "sleepNow",
+      "title": "Skip to sleep light"
+    },
+    {
+      "id": "stopNightLight",
+      "title": "Stop night light"
+    }
+  ],
+  "groups": [
+    { "title": "Colours" },
+    { "title": "Sleep light" },
+    { "title": "Sound" }
+  ]
+}
