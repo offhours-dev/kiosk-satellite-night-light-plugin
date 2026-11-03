@@ -25,7 +25,7 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
     static final String ID = "night-light";
     static final String KEY = "nightlight";
     static final String MODE = "plugin:" + ID + ":" + KEY;
-    static final String BUTTON = "sleep-button";
+    static final String BUTTON = "sleepbutton";
     static final String READY = "Ready. Choose Night Light under Screensaver mode, or run the Start night light action.";
     /** KS can rebuild the view (rotation, UI scale), so wait a moment before treating it as dismissed. */
     static final long END_GRACE_MS = 2500;
