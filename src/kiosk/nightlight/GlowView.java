@@ -30,7 +30,7 @@ final class GlowView extends View {
 
     private static final long COLOUR_FRAME_MS = 66;
     private static final long SLEEP_FRAME_MS = 2000;
-    /** Often enough that the night light's colour waves move smoothly. */
+    /** Often enough that the night light's drifting colours move smoothly. */
     private static final long WAVES_FRAME_MS = 250;
     private static final long FADE_UP_MS = 4000;
     private static final int STAR_LIT = 0x8FB4FF;

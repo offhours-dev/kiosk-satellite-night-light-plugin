@@ -31,7 +31,9 @@ final class Config {
     final boolean liquid;
     final int warmColor;
     final Style nightStyle;
-    /** The night light drifts very slowly through the palette instead of one steady colour. */
+    /** The colours the night light drifts very slowly through, or null for the one solid night light colour. */
+    final int[] nightPalette;
+    /** True when the night light drifts through nightPalette. */
     final boolean nightWaves;
     final double warmBrightness;
     /** The soother's sound. */
@@ -72,7 +74,9 @@ final class Config {
             case "Liquid": nightStyle = Style.LIQUID; break;
             default: nightStyle = Style.GLOW;
         }
-        nightWaves = bool(s, "nightWaves", false);
+        String nightColours = string(s, "nightColours", "Solid");
+        nightPalette = "Solid".equals(nightColours) ? null : Palettes.named(nightColours);
+        nightWaves = nightPalette != null;
         warmBrightness = number(s, "warmBrightness", 25, 1, 100) / 100.0;
         sound = sound(string(s, "sound", "Music box lullaby"), Sound.MUSIC_BOX);
         volume = number(s, "volume", 40, 0, 100) / 100.0;

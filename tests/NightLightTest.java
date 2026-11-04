@@ -103,10 +103,10 @@ public final class NightLightTest {
         Config flat = new Config(ns);
         Scene.Frame flatNight = Scene.frame(flat, Session.NIGHT, 1, 0, null);
         check(flatNight.centre == flatNight.edge && flatNight.centre == glowNight.centre, "flat is one even colour");
-        ns.put("nightWaves", true);
+        ns.put("nightColours", "Ocean");
         Scene.Frame flatWaves = Scene.frame(new Config(ns), Session.NIGHT, 1, 0, null);
-        check(flatWaves.centre == flatWaves.edge, "flat stays even with colour waves");
-        ns.remove("nightWaves");
+        check(flatWaves.centre == flatWaves.edge, "flat stays even with drifting colours");
+        ns.remove("nightColours");
         ns.put("nightStyle", "Liquid");
         Config liquidNight = new Config(ns);
         check(Scene.frame(liquidNight, Session.NIGHT, 1, 0, null).centre != glowNight.centre, "liquid dims the glow under its blobs");
@@ -118,11 +118,18 @@ public final class NightLightTest {
         check(Scene.nightBlobs(c, Session.NIGHT, 1, 0, null)[0].colour == 0, "no night blobs unless liquid");
         check(Scene.frame(liquidNight, 60_000, 0, 0, null).centre == Scene.frame(c, 60_000, 0, 0, null).centre, "the night light style leaves the soother alone");
 
-        // Colour waves at night: off by default, and only the night light changes.
+        // Night light colours: solid by default; a colour set drifts, and only the night light changes.
         Map<String, Object> ws = new HashMap<>();
-        ws.put("nightWaves", true);
+        ws.put("nightColours", "Sunset");
         Config wc = new Config(ws);
-        check(!c.nightWaves && wc.nightWaves, "colour waves setting");
+        check(!c.nightWaves && c.nightPalette == null, "solid night light colour by default");
+        check(wc.nightWaves && wc.nightPalette == Palettes.SUNSET, "night light colours");
+        ws.put("palette", "Ocean");
+        check(new Config(ws).palette == Palettes.OCEAN && new Config(ws).nightPalette == Palettes.SUNSET, "chosen apart from the soother's colours");
+        check(Scene.frame(wc, Session.NIGHT, 1, 0, null).centre == Scene.scale(Palettes.SUNSET[0], wc.warmBrightness), "drifts through its own colours");
+        Map<String, Object> old = new HashMap<>();
+        old.put("nightWaves", true);
+        check(!new Config(old).nightWaves, "the old colour waves setting is ignored");
         int nightA = Scene.frame(wc, Session.NIGHT, 1, 0, null).centre;
         int nightB = Scene.frame(wc, Session.NIGHT, 1, 60_000, null).centre;
         check(nightA != nightB, "colour waves drift at night");

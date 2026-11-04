@@ -40,7 +40,7 @@ final class Scene {
     /** The night light's music plays at the soother's slowest. */
     static final double NIGHT_TEMPO = 0.85;
 
-    /** The night light's colour waves drift this many times slower than the soother's colours. */
+    /** The night light's colours drift this many times slower than the soother's colours. */
     static final double NIGHT_SLOWER = 4;
 
     /** The soother grows out of the night light at the start, so pressing Soother never jumps. */
@@ -76,7 +76,7 @@ final class Scene {
 
     /**
      * The glow at a moment of the soother, given how far it has faded back to the night light. clockMs is the wall
-     * clock, which moves the night light's colour waves.
+     * clock, which moves the night light's colours.
      */
     static Frame frame(Config c, long elapsed, double fade, long clockMs, Frame out) {
         if (out == null) out = new Frame();
@@ -90,8 +90,8 @@ final class Scene {
         int warmEdge;
         if (c.nightWaves) {
             double night = nightPosition(c, clockMs);
-            warm = scale(colourAt(c.palette, night), bright);
-            warmEdge = scale(colourAt(c.palette, c.nightStyle == Config.Style.FLAT ? night : night + 0.6), edgeBright);
+            warm = scale(colourAt(c.nightPalette, night), bright);
+            warmEdge = scale(colourAt(c.nightPalette, c.nightStyle == Config.Style.FLAT ? night : night + 0.6), edgeBright);
         } else {
             warm = scale(c.warmColor, bright);
             warmEdge = scale(c.warmColor, edgeBright);
@@ -161,15 +161,15 @@ final class Scene {
         b.r = 0.42 + 0.08 * Math.sin(2 * Math.PI * t / (lap * 0.9 + i * 7) + i);
     }
 
-    /** How far the night light's colour waves have drifted through the palette by the wall clock. */
+    /** How far the night light has drifted through its colours by the wall clock. */
     static double nightPosition(Config c, long clockMs) {
         return clockMs / 1000.0 / (c.secondsPerColour * NIGHT_SLOWER);
     }
 
     /**
      * The night light's liquid blobs: the same soft blobs as the soother's, drifting NIGHT_SLOWER times slower by the
-     * wall clock. In the night light's colour, a little lighter or darker each, or with colour waves, each a different
-     * colour from the palette. They grow in as the soother fades to the night light. None unless the style is liquid.
+     * wall clock. In the solid night light colour, a little lighter or darker each, or each a different colour from
+     * the night light's colours. They grow in as the soother fades to the night light. None unless the style is liquid.
      */
     static Blob[] nightBlobs(Config c, long elapsed, double fade, long clockMs, Blob[] out) {
         if (out == null) {
@@ -183,7 +183,7 @@ final class Scene {
         for (int i = 0; i < out.length; i++) {
             Blob b = out[i];
             place(b, i, t, lap);
-            int colour = c.nightWaves ? colourAt(c.palette, night + i * c.palette.length / (double) out.length) : c.warmColor;
+            int colour = c.nightWaves ? colourAt(c.nightPalette, night + i * c.nightPalette.length / (double) out.length) : c.warmColor;
             b.colour = scale(colour, c.warmBrightness * 0.5 * (0.75 + 0.25 * (i % 2)) * p);
         }
         return out;

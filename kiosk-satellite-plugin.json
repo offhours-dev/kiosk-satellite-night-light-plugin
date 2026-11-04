@@ -107,12 +107,13 @@
       "description": "How the night light looks. Flat is one even colour across the screen. Glow is a soft glow, brighter in the middle. Liquid is a few soft blobs of colour that drift very slowly and blend, like the soother's liquid style but much slower."
     },
     {
-      "key": "nightWaves",
-      "type": "boolean",
-      "title": "Colour waves",
-      "default": false,
+      "key": "nightColours",
+      "type": "select",
+      "title": "Night light colours",
+      "default": "Solid",
+      "options": ["Solid", "Rainbow", "Ocean", "Sunset", "Aurora", "Candy"],
       "group": "Night light",
-      "description": "Instead of one steady colour, the night light drifts very slowly through the soother's colours, just as dim."
+      "description": "Solid is one steady night light colour. Or pick a set of colours, the same sets as the soother's, to drift through very slowly, just as dim."
     },
     {
       "key": "warmColor",
@@ -120,7 +121,7 @@
       "title": "Night light colour",
       "default": "#FF9440",
       "group": "Night light",
-      "visibleWhen": { "key": "nightWaves", "equals": false },
+      "visibleWhen": { "key": "nightColours", "equals": "Solid" },
       "description": "A warm orange or amber is kindest to sleep."
     },
     {
