@@ -9,13 +9,15 @@ import me.jxl.kiosk.plugins.KsTheme;
 /**
  * The button on the night light: Go to sleep starts the show, End fades it back to the night light. It is drawn dim
  * in the sleep light colour so it does not light up a dark bedroom, and checks once a second so the label follows
- * the show ending on its own.
+ * the show ending on its own. In Night mode it takes the Night colour, or hides.
  */
 final class SleepButton extends TextView {
     interface Source {
         Config config();
         boolean showing();
         void toggleShow();
+        /** True while Night mode is on and the room is dark. */
+        boolean night();
     }
 
     private static final long REFRESH_MS = 1000;
@@ -38,7 +40,9 @@ final class SleepButton extends TextView {
 
     private void refresh() {
         removeCallbacks(refresh);
-        int warm = source.config().warmColor;
+        Config c = source.config();
+        boolean night = source.night();
+        int warm = night ? c.nightColor : c.warmColor;
         setText(source.showing() ? "End" : "Go to sleep");
         setTextColor(0x99000000 | warm);
         GradientDrawable shape = new GradientDrawable();
@@ -46,6 +50,8 @@ final class SleepButton extends TextView {
         shape.setColor(0x66000000);
         shape.setStroke(Math.max(1, theme.px(1)), 0x44000000 | warm);
         setBackground(shape);
+        // Hidden, it takes no taps either; a double tap still closes the screensaver.
+        setVisibility(night && c.nightHide ? INVISIBLE : VISIBLE);
         if (isAttachedToWindow()) postDelayed(refresh, REFRESH_MS);
     }
 

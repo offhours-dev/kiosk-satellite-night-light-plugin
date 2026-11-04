@@ -93,6 +93,18 @@ public final class NightLightTest {
         Scene.blobs(lc, lc.colourMs + lc.fadeMs, blobs);
         check(blobs[0].colour == 0 && Math.abs(blobs[0].x - 0.5) < 1e-9, "blobs gather and fade into the sleep light");
 
+        // Colour waves at night: off by default, and only the night light changes.
+        Map<String, Object> ws = new HashMap<>();
+        ws.put("nightWaves", true);
+        Config wc = new Config(ws);
+        check(!c.nightWaves && wc.nightWaves, "colour waves setting");
+        int nightA = Scene.frame(wc, Session.NIGHT, 1, 0, null).centre;
+        int nightB = Scene.frame(wc, Session.NIGHT, 1, 60_000, null).centre;
+        check(nightA != nightB, "colour waves drift at night");
+        check(Scene.frame(c, Session.NIGHT, 1, 0, null).centre == Scene.frame(c, Session.NIGHT, 1, 60_000, null).centre, "the plain night light stays still");
+        check(Scene.frame(wc, 60_000, 0, 0, null).centre == Scene.frame(c, 60_000, 0, 0, null).centre, "colour waves leave the show alone");
+        check(Scene.phase(0) == Scene.Phase.COLOURS && Scene.phase(0.5) == Scene.Phase.FADING && Scene.phase(1) == Scene.Phase.SLEEP, "phase follows the fade");
+
         Scene.Mix m = Scene.mix(c, 0, null);
         check(m.music == 0, "music fades in");
         Scene.mix(c, 30_000, m);
@@ -167,11 +179,26 @@ public final class NightLightTest {
         now[0] += 5 * 60_000;
         s.shown();
         check(s.elapsed() == 15 * 60_000, "a quick wake carries on");
+        Config cfg = new Config(Collections.emptyMap());
+        check(s.fade(cfg) == 0, "no fade while the show plays");
         s.endShow(show);
-        check(s.elapsed() == show && !s.showing(show), "end jumps to the fade");
-        now[0] += 1000;
+        check(s.elapsed() == 15 * 60_000 && !s.showing(show), "end keeps the show's place, so nothing jumps");
+        check(s.fade(cfg) == 0, "end starts its fade");
+        now[0] += Session.END_FADE_MS / 2;
+        double half = s.fade(cfg);
+        check(half > 0 && half < 1, "end fades quickly: " + half);
         s.endShow(show);
-        check(s.elapsed() == show + 1000, "end never goes back");
+        check(!s.showing(show), "pressing end again does not restart the show");
+        now[0] += Session.END_FADE_MS / 2;
+        check(s.fade(cfg) == 1, "end reaches the night light");
+        s.startShow();
+        check(s.showing(show) && s.fade(cfg) == 0, "go to sleep starts again after end");
+        now[0] += show;
+        check(!s.showing(show) && s.fade(cfg) == 0, "the show's own fade starts at its end");
+        now[0] += cfg.fadeMs;
+        check(s.fade(cfg) == 1, "and takes the fade setting");
+        s.endShow(show);
+        check(s.fade(cfg) == 1, "end after the show does nothing");
         s.ended();
         now[0] += Session.RESUME_MS + 1;
         s.shown();
@@ -291,7 +318,23 @@ public final class NightLightTest {
         check(plugin.config().colourMs == 20 * 60_000L, "configure applies");
         plugin.execute("goToSleep", Collections.emptyMap());
         plugin.execute("sleepNow", Collections.emptyMap());
-        check(plugin.elapsed() == 20 * 60_000L, "end go to sleep starts the fade");
+        check(!plugin.showing() && plugin.fade() == 0, "end go to sleep starts the fade");
+        now[0] += Session.END_FADE_MS;
+        check(plugin.fade() == 1, "and fades to the night light");
+
+        check(NightLightPlugin.dark(false, 3, 5) && !NightLightPlugin.dark(false, 6, 5), "dark at or below the light level");
+        check(NightLightPlugin.dark(true, 6, 5) && !NightLightPlugin.dark(true, 7, 5), "light again a quarter above it");
+        Config nd = new Config(Collections.emptyMap());
+        check(!nd.nightMode && nd.nightLux == 5 && nd.nightColor == 0xA63A32 && !nd.nightHide, "night mode defaults");
+        plugin.onEvent("ks.device.light", Collections.singletonMap("lux", 1));
+        check(!plugin.night(), "night mode is off by default");
+        s.put("nightMode", true);
+        plugin.configure(s);
+        check(plugin.night(), "night mode in a dark room");
+        plugin.onEvent("ks.device.light", Collections.singletonMap("lux", 6));
+        check(plugin.night(), "stays on just above the light level");
+        plugin.onEvent("ks.device.light", Collections.singletonMap("lux", 50.0));
+        check(!plugin.night(), "and ends in a lit room");
 
         boolean threw = false;
         try { plugin.execute("nope", Collections.emptyMap()); } catch (IllegalArgumentException e) { threw = true; }

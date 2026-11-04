@@ -6,7 +6,7 @@ When the screensaver starts it shows a dim, warm night light. Press the **Go to 
 
 - **Music made on the device.** A music box lullaby, dreamy pads or ocean waves, composed as it plays so it never repeats exactly. Or Brahms' Lullaby and Mozart's Twinkle, Twinkle on the music box. It slows down a little as bedtime goes on. There are no audio files and nothing to download.
 - **Soft colours.** A slow glow drifting through Rainbow, Ocean, Sunset, Aurora or Candy colours. Or the **Liquid** style: a few soft blobs of colour that slowly drift and blend into each other, then gather into the warm light at the end. It dims gradually as the show goes on, so the sleep light is not a jump.
-- **Warm sleep light.** Amber by default, with adjustable colour and brightness. The sound can fade to silence, keep playing quietly or turn into ocean waves.
+- **Warm sleep light.** Amber by default, with adjustable colour and brightness. Or turn on **Colour waves** and it drifts very slowly through the show's colours instead, just as dim. The sound can fade to silence, keep playing quietly or turn into ocean waves.
 - **Bedtime countdown.** Optionally shows a row of stars on the night light, about one per hour between bed time and up time (at most 10). They go out one by one through the night, so a child can see how long until it is time to get up.
 - **Wakes gently.** If the screen is tapped mid-show and the night light comes back within an hour, the show carries on where it was.
 
@@ -21,7 +21,7 @@ Either way works:
 | --- | --- |
 | **Start night light** | Switches to the warm night light, fading out the show if it is playing |
 | **Go to sleep** | Starts the colours and music, switching to the night light first if needed |
-| **End go to sleep** | Fades the show back to the warm night light now |
+| **End go to sleep** | Fades the show back to the warm night light over about 20 seconds |
 | **Go to sleep or end** | Starts the show, or ends it if it is playing. Handy for a single clap gesture |
 | **Stop night light** | Dismisses it and restores your usual screensaver |
 
@@ -39,6 +39,12 @@ Kiosk Satellite still controls when the screensaver starts and stops, so check t
 - **Screensaver brightness**: set a lowish panel brightness. The sleep light's own brightness setting dims it further.
 - **Dismissal**: if little hands keep tapping it off, adjust how the screensaver is dismissed.
 - **Media volume**: the music plays on the device's media volume. The plugin's **Volume** setting sits on top of that.
+
+### Night mode
+
+Like the Clock screensaver's Night mode, this uses the device's light sensor. When the room is at or below the **Light level** (5 lx by default), the Go to sleep button, the hint and the stars turn the **Night color**, a muted red by default. With **Hide button and stars** on they disappear instead, leaving only the night light. Night mode ends a quarter above the light level, so the colours never flicker. The night light itself keeps its own colour and brightness.
+
+Kiosk Satellite's own corner widgets and At a Glance row only follow the Clock screensaver's Night mode, so they keep their usual colours over the night light.
 
 ## Settings
 
@@ -58,12 +64,16 @@ Kiosk Satellite still controls when the screensaver starts and stops, so check t
 | Countdown | Bedtime countdown | Off |
 | Countdown | Bed time | 19:00 |
 | Countdown | Up time | 07:00 |
+| Night mode | Night mode | Off |
+| Night mode | Light level | 5 lx |
+| Night mode | Night color | #A63A32 (muted red) |
+| Night mode | Hide button and stars | Off |
 
 Settings save automatically and apply straight away, even while the night light is showing.
 
 ## Permissions
 
-The plugin declares `screensaver` to draw the night light, plus `screensaver.mode` and `host.control` so the actions can switch to it and start or dismiss it. It reads nothing from the kiosk and makes no network requests.
+The plugin declares `screensaver` to draw the night light, plus `screensaver.mode` and `host.control` so the actions can switch to it and start or dismiss it, and `host.read` to read the room's light level for **Night mode**. It reads nothing from the kiosk and makes no network requests.
 
 ## Building
 

@@ -23,10 +23,15 @@ final class GlowView extends View {
     interface Source {
         Config config();
         long elapsed();
+        double fade();
+        /** True while Night mode is on and the room is dark. */
+        boolean night();
     }
 
     private static final long COLOUR_FRAME_MS = 66;
     private static final long SLEEP_FRAME_MS = 2000;
+    /** Often enough that the night light's colour waves move smoothly. */
+    private static final long WAVES_FRAME_MS = 250;
     private static final long FADE_UP_MS = 4000;
     private static final int STAR_LIT = 0x8FB4FF;
     private static final int STAR_OUT = 0x9A9A9A;
@@ -68,7 +73,8 @@ final class GlowView extends View {
         if (w <= 0 || h <= 0) return;
         Config c = source.config();
         long elapsed = source.elapsed();
-        Scene.frame(c, elapsed, frame);
+        double fade = source.fade();
+        Scene.frame(c, elapsed, fade, System.currentTimeMillis(), frame);
         colours[0] = 0xFF000000 | frame.centre;
         colours[1] = 0xFF000000 | Scene.mix(frame.centre, frame.edge, 0.55);
         colours[2] = 0xFF000000 | frame.edge;
@@ -76,13 +82,14 @@ final class GlowView extends View {
         paint.setShader(new RadialGradient((float) (frame.cx * w), (float) (frame.cy * h), radius, colours, stops,
             Shader.TileMode.CLAMP));
         canvas.drawRect(0, 0, w, h, paint);
-        if (c.liquid && frame.phase != Scene.Phase.SLEEP) drawLiquid(canvas, w, h, c, elapsed);
-        if (frame.phase != Scene.Phase.COLOURS) drawStars(canvas, w, h, c, Scene.fade(c, elapsed));
-        if (shown) postInvalidateDelayed(frame.phase == Scene.Phase.SLEEP ? SLEEP_FRAME_MS : COLOUR_FRAME_MS);
+        if (c.liquid && frame.phase != Scene.Phase.SLEEP) drawLiquid(canvas, w, h, c, elapsed, fade);
+        if (frame.phase != Scene.Phase.COLOURS) drawStars(canvas, w, h, c, fade);
+        long next = frame.phase != Scene.Phase.SLEEP ? COLOUR_FRAME_MS : c.nightWaves ? WAVES_FRAME_MS : SLEEP_FRAME_MS;
+        if (shown) postInvalidateDelayed(next);
     }
 
     /** The liquid style's soft blobs, added over the dimmed glow while the show plays. */
-    private void drawLiquid(Canvas canvas, int w, int h, Config c, long elapsed) {
+    private void drawLiquid(Canvas canvas, int w, int h, Config c, long elapsed, double fade) {
         int sw = Math.max(1, w / LIQUID_SCALE);
         int sh = Math.max(1, h / LIQUID_SCALE);
         if (liquid == null || liquid.getWidth() != sw || liquid.getHeight() != sh) {
@@ -90,7 +97,7 @@ final class GlowView extends View {
             liquidCanvas = new Canvas(liquid);
         }
         liquid.eraseColor(0);
-        blobs = Scene.blobs(c, elapsed, blobs);
+        blobs = Scene.blobs(c, elapsed, fade, blobs);
         float size = Math.max(sw, sh);
         for (Scene.Blob b : blobs) {
             if (b.colour == 0) continue;
@@ -107,10 +114,17 @@ final class GlowView extends View {
         canvas.drawBitmap(liquid, null, screen, liquidPaint);
     }
 
-    /** The bedtime countdown on the night light: lit stars still to go, outlines for the hours already slept. */
+    /**
+     * The bedtime countdown on the night light: lit stars still to go, outlines for the hours already slept. In Night
+     * mode they take the Night colour, or hide.
+     */
     private void drawStars(Canvas canvas, int w, int h, Config c, double fade) {
         int n = Stars.count(c);
         if (n == 0 || fade <= 0) return;
+        boolean night = source.night();
+        if (night && c.nightHide) return;
+        int lit = night ? c.nightColor : STAR_LIT;
+        int used = night ? c.nightColor : STAR_OUT;
         Calendar now = Calendar.getInstance();
         long timeOfDay = ((now.get(Calendar.HOUR_OF_DAY) * 60L + now.get(Calendar.MINUTE)) * 60
             + now.get(Calendar.SECOND)) * 1000L;
@@ -126,10 +140,10 @@ final class GlowView extends View {
             if (i < out) {
                 starPaint.setStyle(Paint.Style.STROKE);
                 starPaint.setStrokeWidth(Math.max(1, size * 0.05f));
-                starPaint.setColor(0xFF000000 | Scene.scale(STAR_OUT, k * 0.6));
+                starPaint.setColor(0xFF000000 | Scene.scale(used, k * 0.6));
             } else {
                 starPaint.setStyle(Paint.Style.FILL);
-                starPaint.setColor(0xFF000000 | Scene.scale(STAR_LIT, k));
+                starPaint.setColor(0xFF000000 | Scene.scale(lit, k));
             }
             canvas.drawPath(star, starPaint);
         }

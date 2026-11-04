@@ -17,6 +17,8 @@ final class Config {
     /** Liquid colour style: soft colour blobs that drift and blend during the show, instead of one glow. */
     final boolean liquid;
     final int warmColor;
+    /** The night light drifts very slowly through the palette instead of one steady colour. */
+    final boolean nightWaves;
     final double warmBrightness;
     final Sound sound;
     final double volume;
@@ -25,6 +27,14 @@ final class Config {
     /** Bed and up times in ms since local midnight. */
     final long bedMs;
     final long wakeMs;
+    /**
+     * Night mode, like the Clock screensaver's: when the light sensor reads at or below nightLux, the button, hint and
+     * stars take nightColor, or hide with nightHide.
+     */
+    final boolean nightMode;
+    final double nightLux;
+    final int nightColor;
+    final boolean nightHide;
 
     Config(Map<String, Object> s) {
         colourMs = (long) (number(s, "colourMinutes", 30, 1, 240) * 60_000L);
@@ -38,6 +48,7 @@ final class Config {
         colourBrightness = number(s, "colourBrightness", 70, 10, 100) / 100.0;
         liquid = "Liquid".equals(string(s, "colourStyle", "Glow"));
         warmColor = color(s, "warmColor", 0xFF9440);
+        nightWaves = bool(s, "nightWaves", false);
         warmBrightness = number(s, "warmBrightness", 25, 1, 100) / 100.0;
         switch (string(s, "sound", "Music box lullaby")) {
             case "Brahms & Mozart lullabies": sound = Sound.CLASSIC; break;
@@ -55,6 +66,10 @@ final class Config {
         countdown = bool(s, "countdown", false);
         bedMs = time(s, "bedTime", "19:00");
         wakeMs = time(s, "wakeTime", "07:00");
+        nightMode = bool(s, "nightMode", false);
+        nightLux = number(s, "nightLux", 5, 1, 100);
+        nightColor = color(s, "nightColor", 0xA63A32);
+        nightHide = bool(s, "nightHide", false);
     }
 
     static double number(Map<String, Object> s, String key, double fallback, double min, double max) {

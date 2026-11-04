@@ -13,6 +13,7 @@ final class AudioOut implements Runnable {
     interface Source {
         Config config();
         long elapsed();
+        double fade();
         void log(String message);
     }
 
@@ -90,7 +91,7 @@ final class AudioOut implements Runnable {
         boolean playing = false;
         while (!Thread.currentThread().isInterrupted()) {
             Config c = source.config();
-            Scene.mix(c, source.elapsed(), mix);
+            Scene.mix(c, source.elapsed(), source.fade(), mix);
             boolean stopping = !running;
             double master = stopping ? 0 : Math.pow(c.volume, 1.5);
             boolean silent = master * Math.max(mix.music, mix.waves) < 1e-4;

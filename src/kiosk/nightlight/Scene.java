@@ -36,9 +36,18 @@ final class Scene {
         double tempo = 1;
     }
 
+    /** The night light's colour waves drift this many times slower than the show's colours. */
+    static final double NIGHT_SLOWER = 4;
+
     /** The show grows out of the sleep light at the start, so pressing Go to sleep never jumps. */
     static final long FADE_IN_MS = 8000;
     static final long SOUND_FADE_IN_MS = 6000;
+
+    static Phase phase(double fade) {
+        if (fade <= 0) return Phase.COLOURS;
+        if (fade < 1) return Phase.FADING;
+        return Phase.SLEEP;
+    }
 
     static Phase phase(Config c, long elapsed) {
         if (elapsed < c.colourMs) return Phase.COLOURS;
@@ -46,7 +55,7 @@ final class Scene {
         return Phase.SLEEP;
     }
 
-    /** How far through the fade to the sleep light, eased, from 0 to 1. */
+    /** How far through the fade to the sleep light, eased, from 0 to 1, for a show left to run its course. */
     static double fade(Config c, long elapsed) {
         if (elapsed <= c.colourMs) return 0;
         if (c.fadeMs <= 0) return 1;
@@ -54,17 +63,33 @@ final class Scene {
     }
 
     /** How close the show is to the sleep light, from 0 to 1: it grows out of it at the start and fades back at the end. */
-    static double toSleep(Config c, long elapsed) {
-        return Math.max(fade(c, elapsed), 1 - smooth(clamp(elapsed / (double) FADE_IN_MS)));
+    static double toSleep(long elapsed, double fade) {
+        return Math.max(fade, 1 - smooth(clamp(elapsed / (double) FADE_IN_MS)));
     }
 
     static Frame frame(Config c, long elapsed, Frame out) {
+        return frame(c, elapsed, fade(c, elapsed), 0, out);
+    }
+
+    /**
+     * The glow at a moment of the show, given how far it has faded back to the night light. clockMs is the wall
+     * clock, which moves the night light's colour waves.
+     */
+    static Frame frame(Config c, long elapsed, double fade, long clockMs, Frame out) {
         if (out == null) out = new Frame();
         elapsed = Math.max(0, elapsed);
-        out.phase = phase(c, elapsed);
-        int warm = scale(c.warmColor, c.warmBrightness);
-        int warmEdge = scale(c.warmColor, c.warmBrightness * 0.72);
-        double p = toSleep(c, elapsed);
+        out.phase = phase(fade);
+        int warm;
+        int warmEdge;
+        if (c.nightWaves) {
+            double night = clockMs / 1000.0 / (c.secondsPerColour * NIGHT_SLOWER);
+            warm = scale(colourAt(c.palette, night), c.warmBrightness);
+            warmEdge = scale(colourAt(c.palette, night + 0.6), c.warmBrightness * 0.72);
+        } else {
+            warm = scale(c.warmColor, c.warmBrightness);
+            warmEdge = scale(c.warmColor, c.warmBrightness * 0.72);
+        }
+        double p = toSleep(elapsed, fade);
         if (out.phase == Phase.SLEEP) {
             out.centre = warm;
             out.edge = warmEdge;
@@ -95,6 +120,10 @@ final class Scene {
      * down and gather into the centre as it fades to the sleep light. Colours are added on top of the frame.
      */
     static Blob[] blobs(Config c, long elapsed, Blob[] out) {
+        return blobs(c, elapsed, fade(c, elapsed), out);
+    }
+
+    static Blob[] blobs(Config c, long elapsed, double fade, Blob[] out) {
         if (out == null) {
             out = new Blob[BLOBS];
             for (int i = 0; i < BLOBS; i++) out[i] = new Blob();
@@ -103,7 +132,7 @@ final class Scene {
         double windDown = clamp(elapsed / (double) Math.max(1, c.colourMs));
         // Slows to 70% by the end of the show without the blobs ever jumping.
         double t = elapsed / 1000.0 * (1 - 0.15 * windDown);
-        double p = toSleep(c, elapsed);
+        double p = toSleep(elapsed, fade);
         double bright = c.colourBrightness * (1 - 0.35 * windDown) * 0.5 * (1 - p);
         // One lap of a blob's path takes about five colour changes: a minute or two.
         double lap = c.secondsPerColour * 5;
@@ -121,10 +150,14 @@ final class Scene {
     }
 
     static Mix mix(Config c, long elapsed, Mix out) {
+        return mix(c, elapsed, fade(c, elapsed), out);
+    }
+
+    static Mix mix(Config c, long elapsed, double fade, Mix out) {
         if (out == null) out = new Mix();
         elapsed = Math.max(0, elapsed);
         double in = smooth(clamp(elapsed / (double) SOUND_FADE_IN_MS));
-        double p = fade(c, elapsed);
+        double p = fade;
         double windDown = clamp(elapsed / (double) Math.max(1, c.colourMs));
         out.tempo = 1 - 0.15 * windDown;
         boolean music = c.sound == Config.Sound.MUSIC_BOX || c.sound == Config.Sound.CLASSIC || c.sound == Config.Sound.DREAMY;

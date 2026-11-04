@@ -13,7 +13,8 @@
   "capabilities": [
     "screensaver",
     "screensaver.mode",
-    "host.control"
+    "host.control",
+    "host.read"
   ],
   "icon": "icon.png",
   "settings": [
@@ -81,11 +82,20 @@
       "description": "How long the colours and music take to fade back into the sleep light, at the end of the show or after End."
     },
     {
+      "key": "nightWaves",
+      "type": "boolean",
+      "title": "Colour waves",
+      "default": false,
+      "group": "Sleep light",
+      "description": "Instead of one steady colour, the night light drifts very slowly through the show's colours, at the sleep light brightness."
+    },
+    {
       "key": "warmColor",
       "type": "color",
       "title": "Sleep light colour",
       "default": "#FF9440",
       "group": "Sleep light",
+      "visibleWhen": { "key": "nightWaves", "equals": false },
       "description": "A warm orange or amber is kindest to sleep."
     },
     {
@@ -155,6 +165,45 @@
       "group": "Countdown",
       "visibleWhen": { "key": "countdown", "equals": true },
       "description": "When the last star goes out and it is time to get up, such as 07:00 or 7am. At most 10 stars show."
+    },
+    {
+      "key": "nightMode",
+      "type": "boolean",
+      "title": "Night mode",
+      "default": false,
+      "group": "Night mode",
+      "description": "Recolours the button, hint and stars when the room gets dark, like the Clock screensaver's Night mode. Needs a device with a light sensor."
+    },
+    {
+      "key": "nightLux",
+      "type": "number",
+      "title": "Light level",
+      "default": 5,
+      "min": 1,
+      "max": 100,
+      "step": 1,
+      "unit": "lx",
+      "group": "Night mode",
+      "visibleWhen": { "key": "nightMode", "equals": true },
+      "description": "Night mode starts at or below this light level, and ends a little above it so the colours never flicker."
+    },
+    {
+      "key": "nightColor",
+      "type": "color",
+      "title": "Night color",
+      "default": "#A63A32",
+      "group": "Night mode",
+      "visibleWhen": { "key": "nightMode", "equals": true },
+      "description": "The colour of the button, hint and stars in the dark. Muted red by default, which is kindest to sleepy eyes."
+    },
+    {
+      "key": "nightHide",
+      "type": "boolean",
+      "title": "Hide button and stars",
+      "default": false,
+      "group": "Night mode",
+      "visibleWhen": { "key": "nightMode", "equals": true },
+      "description": "Hides the button, hint and stars while Night mode is on, leaving only the night light. They come back when the room brightens. A double tap still closes the screensaver."
     }
   ],
   "commands": [
@@ -183,6 +232,7 @@
     { "title": "Colours" },
     { "title": "Sleep light" },
     { "title": "Sound" },
-    { "title": "Countdown" }
+    { "title": "Countdown" },
+    { "title": "Night mode" }
   ]
 }

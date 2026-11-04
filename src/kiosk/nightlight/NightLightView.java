@@ -17,10 +17,12 @@ final class NightLightView extends FrameLayout {
     private static final long HINT_MS = 8000;
 
     private final TextView hint;
+    private final SleepButton.Source source;
     private final Runnable fadeHint = this::fadeHint;
 
     NightLightView(Context context, KsTheme theme, GlowView glow, SleepButton.Source source) {
         super(context);
+        this.source = source;
         int margin = theme.px(24);
         addView(glow, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
 
@@ -48,7 +50,10 @@ final class NightLightView extends FrameLayout {
     private void showHint() {
         removeCallbacks(fadeHint);
         hint.animate().cancel();
-        hint.animate().alpha(1f).setDuration(300).start();
+        Config c = source.config();
+        boolean night = source.night();
+        hint.setTextColor(0x66000000 | (night ? c.nightColor : c.warmColor));
+        hint.animate().alpha(night && c.nightHide ? 0f : 1f).setDuration(300).start();
         postDelayed(fadeHint, HINT_MS);
     }
 

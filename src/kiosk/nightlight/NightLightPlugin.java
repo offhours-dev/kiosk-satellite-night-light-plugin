@@ -30,6 +30,7 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
     static final long END_GRACE_MS = 2500;
     /** The tap that runs a corner gesture also dismisses the screensaver, so look again after it has gone. */
     static final long TAP_SETTLE_MS = 800;
+    static final String LIGHT_EVENT = "device.light";
 
     private volatile PluginHost host;
     private volatile Config config = new Config(Collections.emptyMap());
@@ -42,6 +43,8 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
     private boolean overriding;
     /** True when KS passes taps to the screensaver, so it can have its Go to sleep button. */
     private volatile boolean touch;
+    /** The room is dark by the light sensor, for Night mode. */
+    private volatile boolean dark;
 
     public NightLightPlugin() {
         this(System::currentTimeMillis);
@@ -69,6 +72,7 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
                 touch = false;
             }
             host.status(READY, false);
+            watchLight(host);
         } catch (UnsupportedOperationException | LinkageError olderHost) {
             host.status("This Kiosk Satellite is too old for native screensavers. Update Kiosk Satellite.", true);
         }
@@ -76,6 +80,27 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
 
     @Override public void configure(Map<String, Object> settings) {
         config = new Config(settings);
+    }
+
+    /** Follows the room's light level for Night mode, the way the Clock screensaver does. */
+    private void watchLight(PluginHost h) {
+        try {
+            h.subscribe(LIGHT_EVENT);
+            h.executeCommand("getLightLevel", Collections.emptyMap(), (ok, data, error) -> {
+                if (ok && data instanceof Map) light(((Map<?, ?>) data).get("lux"));
+            });
+        } catch (UnsupportedOperationException | SecurityException | LinkageError noSensor) {
+            h.log("No light level: " + noSensor);
+        }
+    }
+
+    private void light(Object lux) {
+        if (lux instanceof Number) dark = dark(dark, ((Number) lux).doubleValue(), config.nightLux);
+    }
+
+    /** Dark at or below the threshold, and light again only a quarter above it, so it never flickers. */
+    static boolean dark(boolean wasDark, double lux, double threshold) {
+        return lux <= (wasDark ? threshold * 1.25 : threshold);
     }
 
     @Override public void execute(String command, Map<String, Object> arguments) {
@@ -142,7 +167,9 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
         });
     }
 
-    @Override public void onEvent(String event, Map<String, Object> payload) {}
+    @Override public void onEvent(String event, Map<String, Object> payload) {
+        if (("ks." + LIGHT_EVENT).equals(event) && payload != null) light(payload.get("lux"));
+    }
 
     @Override public synchronized void stop() {
         if (audio != null) audio.stopNow();
@@ -204,6 +231,14 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
 
     @Override public long elapsed() {
         return session.elapsed();
+    }
+
+    @Override public double fade() {
+        return session.fade(config);
+    }
+
+    @Override public boolean night() {
+        return dark && config.nightMode;
     }
 
     @Override public void log(String message) {
