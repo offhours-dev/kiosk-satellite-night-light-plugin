@@ -2,47 +2,53 @@
 
 A bedtime night light for a child's room, built as a [Kiosk Satellite](https://github.com/jxlarrea/kiosk-satellite) screensaver.
 
-When the screensaver starts it shows a dim, warm night light. Press the **Go to sleep** button in the corner and gentle sleepy music plays while the screen drifts slowly through soft colours. Press **End**, or wait for the show to finish (30 minutes by default), and the colours and music fade over a few minutes back to the warm night light.
+Night Light has two modes:
 
-- **Music made on the device.** A music box lullaby, dreamy pads or ocean waves, composed as it plays so it never repeats exactly. Or Brahms' Lullaby and Mozart's Twinkle, Twinkle on the music box. It slows down a little as bedtime goes on. There are no audio files and nothing to download.
-- **Soft colours.** A slow glow drifting through Rainbow, Ocean, Sunset, Aurora or Candy colours. Or the **Liquid** style: a few soft blobs of colour that slowly drift and blend into each other, then gather into the warm light at the end. It dims gradually as the show goes on, so the sleep light is not a jump.
-- **Warm sleep light.** Amber by default, with adjustable colour and brightness. Or turn on **Colour waves** and it drifts very slowly through the show's colours instead, just as dim. The sound can fade to silence, keep playing quietly or turn into ocean waves.
+- **Night light**: a dim, warm light that stays on all night, with optional quiet sound. The screensaver always opens on it.
+- **Soother**: gentle sleepy music or sounds while the screen drifts slowly through soft colours. Press the **Soother** button in the corner to start it. Press **End soother**, or let it finish (30 minutes by default), and it fades back to the night light.
+
+What it offers:
+
+- **Sound made on the device.** A music box lullaby, dreamy pads or ocean waves, composed as it plays so it never repeats exactly. Or Brahms' Lullaby and Mozart's Twinkle, Twinkle on the music box. It slows down a little as the soother goes on. There are no audio files and nothing to download.
+- **Soft colours.** The soother is a slow glow drifting through Rainbow, Ocean, Sunset, Aurora or Candy colours. Or pick the **Liquid** style: a few soft blobs of colour that slowly drift and blend into each other, then gather into the night light at the end. It dims gradually, so the night light is not a jump.
+- **A warm night light.** Amber by default, with adjustable colour and brightness. Or turn on **Colour waves** and it drifts very slowly through the soother's colours instead, just as dim.
+- **Sounds for each mode.** The soother and the night light choose from the same sounds: a music box lullaby, Brahms & Mozart lullabies, dreamy pads, ocean waves, white, pink or brown noise, or no sound. Each has its own choice and volume, so the soother can play a lullaby and the night light brown noise all night. White noise is a steady hiss, pink noise is softer and brown noise is a deep rumble.
 - **Bedtime countdown.** Optionally shows a row of stars on the night light, about one per hour between bed time and up time (at most 10). They go out one by one through the night, so a child can see how long until it is time to get up.
-- **Wakes gently.** If the screen is tapped mid-show and the night light comes back within an hour, the show carries on where it was.
+- **Wakes gently.** If the screen is tapped mid-soother and the screensaver comes back within an hour, the soother carries on where it was.
 
 ## Using it
 
 Either way works:
 
 1. **As the screensaver.** Choose **Night Light (Night Light)** under **Screensaver > Screensaver mode**, or in a screensaver schedule entry, for example every evening from 7pm to 7am.
-2. **On demand.** Run the **Start night light** or **Go to sleep** action from a gesture, the kiosk drawer or a Home Assistant button. It shows the night light right away and gives your usual screensaver back once it is dismissed in the morning.
+2. **On demand.** Run the **Show night light** or **Start soother** action from a gesture, the kiosk drawer or a Home Assistant button. It shows the screensaver right away and gives your usual one back once it is dismissed in the morning.
 
 | Action | What it does |
 | --- | --- |
-| **Start night light** | Switches to the warm night light, fading out the show if it is playing |
-| **Go to sleep** | Starts the colours and music, switching to the night light first if needed |
-| **End go to sleep** | Fades the show back to the warm night light over about 20 seconds |
-| **Go to sleep or end** | Starts the show, or ends it if it is playing. Handy for a single clap gesture |
-| **Stop night light** | Dismisses it and restores your usual screensaver |
+| **Show night light** | Shows the night light, fading out the soother if it is playing |
+| **Start soother** | Starts the soother, showing the screensaver first if needed |
+| **End soother** | Fades the soother back to the night light over about 20 seconds |
+| **Start or end soother** | Starts the soother, or ends it if it is playing. Handy for a single clap gesture |
+| **Close Night Light** | Dismisses the screensaver and restores your usual one |
 
-While the night light shows, a dim button in the bottom right corner switches between **Go to sleep** and **End**. A single tap anywhere else does nothing, so little hands cannot close it by accident. **Double tap** to close the screensaver. A hint saying so shows for a few seconds after each touch.
+While the screensaver shows, a dim button in the bottom right corner switches between **Soother** and **End soother**. A single tap anywhere else does nothing, so little hands cannot close it by accident. **Double tap** to close the screensaver. A hint saying so shows for a few seconds after each touch.
 
-The button needs a Kiosk Satellite release that passes taps to plugin screensavers. On older releases there is no button and any tap closes the screensaver, so use a gesture such as a clap with the **Go to sleep or end** action instead.
+The button needs a Kiosk Satellite release that passes taps to plugin screensavers. On older releases there is no button and any tap closes the screensaver, so use a gesture such as a clap with the **Start or end soother** action instead.
 
-Each action can also be exposed to Home Assistant from the plugin page. You can then start the night light from a bedtime automation.
+Each action can also be exposed to Home Assistant from the plugin page. You can then start the soother from a bedtime automation.
 
 ### Recommended Kiosk Satellite settings
 
 Kiosk Satellite still controls when the screensaver starts and stops, so check these screensaver settings:
 
 - **Turn off any screen-off timer** for the screensaver, or the night light goes dark when it fires.
-- **Screensaver brightness**: set a lowish panel brightness. The sleep light's own brightness setting dims it further.
-- **Dismissal**: if little hands keep tapping it off, adjust how the screensaver is dismissed.
-- **Media volume**: the music plays on the device's media volume. The plugin's **Volume** setting sits on top of that.
+- **Screensaver brightness**: set a lowish panel brightness. The night light's own brightness setting dims it further.
+- **Motion wake**: turn it off, or someone moving in the room closes the screensaver.
+- **Media volume**: sound plays on the device's media volume. The plugin's **Soother volume** and **Night light volume** settings sit on top of that.
 
 ### Night mode
 
-Like the Clock screensaver's Night mode, this uses the device's light sensor. When the room is at or below the **Light level** (5 lx by default), the Go to sleep button, the hint and the stars turn the **Night color**, a muted red by default. With **Hide button and stars** on they disappear instead, leaving only the night light. Night mode ends a quarter above the light level, so the colours never flicker. The night light itself keeps its own colour and brightness.
+Like the Clock screensaver's Night mode, this uses the device's light sensor. When the room is at or below the **Light level** (5 lx by default), the Soother button, the hint and the stars turn the **Night color**, a muted red by default. With **Hide button and stars** on they disappear instead, leaving only the night light. Night mode ends a quarter above the light level, so the colours never flicker. The night light itself keeps its own colour and brightness.
 
 Kiosk Satellite's own corner widgets and At a Glance row only follow the Clock screensaver's Night mode, so they keep their usual colours over the night light.
 
@@ -50,17 +56,19 @@ Kiosk Satellite's own corner widgets and At a Glance row only follow the Clock s
 
 | Group | Setting | Default |
 | --- | --- | --- |
-| Colours | Colour show length | 30 min |
-| Colours | Colour style | Glow |
-| Colours | Colours | Rainbow |
-| Colours | Colour speed | Slow |
-| Colours | Colour brightness | 70% |
-| Sleep light | Fade to sleep light | 3 min |
-| Sleep light | Sleep light colour | #FF9440 (warm amber) |
-| Sleep light | Sleep light brightness | 25% |
-| Sound | Music | Music box lullaby |
-| Sound | Volume | 40% |
-| Sound | During the sleep light | Fade to silence |
+| Soother | Soother length | 30 min |
+| Soother | Soother sound | Music box lullaby |
+| Soother | Soother volume | 40% |
+| Soother | Soother colours | Rainbow |
+| Soother | Colour style | Glow |
+| Soother | Colour speed | Slow |
+| Soother | Colour brightness | 70% |
+| Soother | Fade to night light | 3 min |
+| Night light | Colour waves | Off |
+| Night light | Night light colour | #FF9440 (warm amber) |
+| Night light | Night light brightness | 25% |
+| Night light | Night light sound | No sound |
+| Night light | Night light volume | 25% |
 | Countdown | Bedtime countdown | Off |
 | Countdown | Bed time | 19:00 |
 | Countdown | Up time | 07:00 |
@@ -73,7 +81,7 @@ Settings save automatically and apply straight away, even while the night light 
 
 ## Permissions
 
-The plugin declares `screensaver` to draw the night light, plus `screensaver.mode` and `host.control` so the actions can switch to it and start or dismiss it, and `host.read` to read the room's light level for **Night mode**. It reads nothing from the kiosk and makes no network requests.
+The plugin declares `screensaver` to draw the night light, plus `screensaver.mode` and `host.control` so the actions can switch to it and start or dismiss it, and `host.read` to read the room's light level for **Night mode**. It reads nothing else from the kiosk and makes no network requests.
 
 ## Building
 

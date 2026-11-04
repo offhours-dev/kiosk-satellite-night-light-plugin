@@ -3,7 +3,7 @@ package kiosk.nightlight;
 
 /**
  * What the night light shows and plays at a moment of its session. Pure maths, so it runs on the desktop JVM in
- * tests. The session has three parts: the colour show, a fade to the sleep light, and the sleep light itself.
+ * tests. The soother has three parts: its colours, a fade to the night light, and the night light itself.
  */
 final class Scene {
     enum Phase { COLOURS, FADING, SLEEP }
@@ -29,19 +29,22 @@ final class Scene {
     /** In the liquid style the glow underneath is dimmed, so the blobs carry the colour. */
     static final double LIQUID_BASE = 0.35;
 
-    /** Layer levels for the synth, from 0 to 1 before the volume setting is applied. */
+    /** How loud the soother's and the night light's sounds are, from 0 to 1, with their volumes applied. */
     static final class Mix {
-        double music;
-        double waves;
+        double soother;
+        double night;
+        /** The soother's music speed; it slows as the soother winds down. */
         double tempo = 1;
     }
 
-    /** The night light's colour waves drift this many times slower than the show's colours. */
+    /** The night light's music plays at the soother's slowest. */
+    static final double NIGHT_TEMPO = 0.85;
+
+    /** The night light's colour waves drift this many times slower than the soother's colours. */
     static final double NIGHT_SLOWER = 4;
 
-    /** The show grows out of the sleep light at the start, so pressing Go to sleep never jumps. */
+    /** The soother grows out of the night light at the start, so pressing Soother never jumps. */
     static final long FADE_IN_MS = 8000;
-    static final long SOUND_FADE_IN_MS = 6000;
 
     static Phase phase(double fade) {
         if (fade <= 0) return Phase.COLOURS;
@@ -55,14 +58,14 @@ final class Scene {
         return Phase.SLEEP;
     }
 
-    /** How far through the fade to the sleep light, eased, from 0 to 1, for a show left to run its course. */
+    /** How far through the fade to the night light, eased, from 0 to 1, for a soother left to run its course. */
     static double fade(Config c, long elapsed) {
         if (elapsed <= c.colourMs) return 0;
         if (c.fadeMs <= 0) return 1;
         return smooth(clamp((elapsed - c.colourMs) / (double) c.fadeMs));
     }
 
-    /** How close the show is to the sleep light, from 0 to 1: it grows out of it at the start and fades back at the end. */
+    /** How close the soother is to the night light, from 0 to 1: it grows out of it at the start and fades back at the end. */
     static double toSleep(long elapsed, double fade) {
         return Math.max(fade, 1 - smooth(clamp(elapsed / (double) FADE_IN_MS)));
     }
@@ -72,7 +75,7 @@ final class Scene {
     }
 
     /**
-     * The glow at a moment of the show, given how far it has faded back to the night light. clockMs is the wall
+     * The glow at a moment of the soother, given how far it has faded back to the night light. clockMs is the wall
      * clock, which moves the night light's colour waves.
      */
     static Frame frame(Config c, long elapsed, double fade, long clockMs, Frame out) {
@@ -98,7 +101,7 @@ final class Scene {
             return out;
         }
         double t = elapsed / 1000.0;
-        // The show winds down: a little dimmer by the end, so the sleep light is not a jump.
+        // The soother winds down: a little dimmer by the end, so the night light is not a jump.
         double windDown = clamp(elapsed / (double) Math.max(1, c.colourMs));
         double bright = c.colourBrightness * (1 - 0.35 * windDown);
         double pos = t / c.secondsPerColour;
@@ -115,9 +118,9 @@ final class Scene {
     }
 
     /**
-     * The liquid style's blobs during the show. Each wanders its own slow path and drifts through the palette, a
-     * different colour from the others, so where they overlap the colours blend. They slow and dim as the show winds
-     * down and gather into the centre as it fades to the sleep light. Colours are added on top of the frame.
+     * The liquid style's blobs during the soother. Each wanders its own slow path and drifts through the palette, a
+     * different colour from the others, so where they overlap the colours blend. They slow and dim as the soother
+     * winds down and gather into the centre as it fades to the night light. Colours are added on top of the frame.
      */
     static Blob[] blobs(Config c, long elapsed, Blob[] out) {
         return blobs(c, elapsed, fade(c, elapsed), out);
@@ -130,7 +133,7 @@ final class Scene {
         }
         elapsed = Math.max(0, elapsed);
         double windDown = clamp(elapsed / (double) Math.max(1, c.colourMs));
-        // Slows to 70% by the end of the show without the blobs ever jumping.
+        // Slows to 70% by the end of the soother without the blobs ever jumping.
         double t = elapsed / 1000.0 * (1 - 0.15 * windDown);
         double p = toSleep(elapsed, fade);
         double bright = c.colourBrightness * (1 - 0.35 * windDown) * 0.5 * (1 - p);
@@ -153,31 +156,24 @@ final class Scene {
         return mix(c, elapsed, fade(c, elapsed), out);
     }
 
+    /**
+     * The sound at a moment: the soother's sound at the soother volume crossfades with the night light's sound at the
+     * night light volume, the same way the colours do, so starting or ending the soother never jumps.
+     */
     static Mix mix(Config c, long elapsed, double fade, Mix out) {
         if (out == null) out = new Mix();
         elapsed = Math.max(0, elapsed);
-        double in = smooth(clamp(elapsed / (double) SOUND_FADE_IN_MS));
-        double p = fade;
+        double p = toSleep(elapsed, fade);
         double windDown = clamp(elapsed / (double) Math.max(1, c.colourMs));
-        out.tempo = 1 - 0.15 * windDown;
-        boolean music = c.sound == Config.Sound.MUSIC_BOX || c.sound == Config.Sound.CLASSIC || c.sound == Config.Sound.DREAMY;
-        boolean waves = c.sound == Config.Sound.WAVES;
-        double main;
-        double sleepWaves = 0;
-        switch (c.sleepSound) {
-            case QUIET: main = 1 - 0.6 * p; break;
-            case WAVES: main = 1 - p; sleepWaves = 0.6 * p; break;
-            default: main = 1 - p;
-        }
-        if (c.sound == Config.Sound.NONE) {
-            out.music = 0;
-            out.waves = c.sleepSound == Config.SleepSound.WAVES ? sleepWaves : 0;
-            return out;
-        }
-        out.music = music ? main * in : 0;
-        // A waves show stays waves: it fades or quietens like the music would, or settles at the sleep level.
-        out.waves = waves ? Math.max(main, sleepWaves) * in : sleepWaves;
+        out.tempo = 1 - (1 - NIGHT_TEMPO) * windDown;
+        out.soother = c.sound == Config.Sound.NONE ? 0 : (1 - p) * loudness(c.volume);
+        out.night = c.sleepSound == Config.Sound.NONE ? 0 : p * loudness(c.nightVolume);
         return out;
+    }
+
+    /** A volume setting as a level: the curve makes the slider feel even. */
+    static double loudness(double volume) {
+        return Math.pow(clamp(volume), 1.5);
     }
 
     /** The palette colour at a position: whole numbers land on palette entries, with eased blends between. */

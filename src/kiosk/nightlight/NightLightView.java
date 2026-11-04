@@ -9,8 +9,8 @@ import android.widget.TextView;
 import me.jxl.kiosk.plugins.KsTheme;
 
 /**
- * The night light with its controls, for Kiosk Satellite releases that pass single taps to the screensaver: the Go
- * to sleep button, and a hint that a double tap closes it. KS draws no hint itself. The hint shows for a few seconds
+ * The night light with its controls, for Kiosk Satellite releases that pass single taps to the screensaver: the
+ * Soother button, and a hint that a double tap closes it. KS draws no hint itself. The hint shows for a few seconds
  * after each touch, then fades so it does not light up the room.
  */
 final class NightLightView extends FrameLayout {

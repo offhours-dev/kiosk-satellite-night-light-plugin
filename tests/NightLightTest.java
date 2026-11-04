@@ -25,7 +25,7 @@ public final class NightLightTest {
         Config d = new Config(Collections.emptyMap());
         check(d.colourMs == 30 * 60_000L, "default colour show is 30 minutes");
         check(d.warmColor == 0xFF9440, "default warm colour");
-        check(d.sound == Config.Sound.MUSIC_BOX && d.sleepSound == Config.SleepSound.SILENCE, "default sound");
+        check(d.sound == Config.Sound.MUSIC_BOX && d.sleepSound == Config.Sound.NONE, "default sound");
         Map<String, Object> s = new HashMap<>();
         s.put("colourMinutes", 10);
         s.put("warmColor", "#ff0000");
@@ -37,7 +37,7 @@ public final class NightLightTest {
         check(c.colourMs == 600_000L, "colour minutes");
         check(c.warmColor == 0xFF0000, "warm colour parses");
         check(c.warmBrightness == 1.0, "brightness clamps");
-        check(c.sound == Config.Sound.WAVES && c.sleepSound == Config.SleepSound.QUIET, "sound choices");
+        check(c.sound == Config.Sound.WAVES && c.sleepSound == Config.Sound.WAVES, "the old keep playing setting carries the soother's sound on");
         check(c.palette == Palettes.OCEAN, "palette");
         s.put("warmColor", "nonsense");
         check(new Config(s).warmColor == 0xFF9440, "bad colour falls back");
@@ -105,28 +105,50 @@ public final class NightLightTest {
         check(Scene.frame(wc, 60_000, 0, 0, null).centre == Scene.frame(c, 60_000, 0, 0, null).centre, "colour waves leave the show alone");
         check(Scene.phase(0) == Scene.Phase.COLOURS && Scene.phase(0.5) == Scene.Phase.FADING && Scene.phase(1) == Scene.Phase.SLEEP, "phase follows the fade");
 
+        double sootherLevel = Scene.loudness(0.4);
+        double nightLevel = Scene.loudness(0.25);
         Scene.Mix m = Scene.mix(c, 0, null);
-        check(m.music == 0, "music fades in");
+        check(m.soother == 0, "the soother's sound fades in");
         Scene.mix(c, 30_000, m);
-        check(m.music > 0.99 && m.waves == 0, "music during the show");
+        check(Math.abs(m.soother - sootherLevel) < 1e-9 && m.night == 0, "the soother at its volume");
         Scene.mix(c, c.colourMs + c.fadeMs + 1, m);
-        check(m.music == 0 && m.waves == 0, "silence during sleep by default");
+        check(m.soother == 0 && m.night == 0, "the night light is silent by default");
         Scene.mix(c, Session.NIGHT, m);
-        check(m.music == 0 && m.waves == 0, "the night light is silent by default");
-        check(m.tempo < 1 && m.tempo >= 0.85, "music slows down");
+        check(m.soother == 0 && m.night == 0, "silent from the start by default");
+        check(m.tempo < 1 && m.tempo >= Scene.NIGHT_TEMPO, "music slows down");
 
+        // Both modes choose from the same sounds, separately.
         Map<String, Object> s = new HashMap<>();
-        s.put("sleepSound", "Ocean waves");
-        Config w = new Config(s);
-        Scene.mix(w, w.colourMs + w.fadeMs + 1, m);
-        check(m.music == 0 && Math.abs(m.waves - 0.6) < 1e-9, "waves through the night");
-        s.put("sleepSound", "Keep playing quietly");
-        Scene.mix(new Config(s), w.colourMs + w.fadeMs + 1, m);
-        check(Math.abs(m.music - 0.4) < 1e-9, "quiet music through the night");
+        String[] names = {"Music box lullaby", "Brahms & Mozart lullabies", "Dreamy pads", "Ocean waves",
+            "White noise", "Pink noise", "Brown noise", "No sound"};
+        for (String name : names) {
+            s.put("sound", name);
+            s.put("sleepSound", name);
+            Config both = new Config(s);
+            check(both.sound == both.sleepSound && (both.sound == Config.Sound.NONE) == name.equals("No sound"), name + " in both modes");
+        }
+        s.put("sound", "Brahms & Mozart lullabies");
+        s.put("sleepSound", "Brown noise");
+        Config split = new Config(s);
+        check(split.sound == Config.Sound.CLASSIC && split.sleepSound == Config.Sound.BROWN, "each mode keeps its own sound");
+        check(split.sound.music() && !split.sound.noise() && split.sleepSound.noise(), "sound kinds");
+        Scene.mix(split, Session.NIGHT, m);
+        check(m.soother == 0 && Math.abs(m.night - nightLevel) < 1e-9, "the night light's sound through the night");
+        Scene.mix(split, 30_000, 0, m);
+        check(m.night == 0 && Math.abs(m.soother - sootherLevel) < 1e-9, "it gives way to the soother");
+        Scene.mix(split, 4000, 0, m);
+        check(m.night > 0 && m.soother > 0, "and the two crossfade");
+        s.put("nightVolume", 60);
+        Scene.mix(new Config(s), Session.NIGHT, m);
+        check(Math.abs(m.night - Scene.loudness(0.6)) < 1e-9, "night light volume is its own");
+        s.put("volume", 0);
+        Scene.mix(new Config(s), Session.NIGHT, m);
+        check(Math.abs(m.night - Scene.loudness(0.6)) < 1e-9, "the soother volume leaves the night light alone");
+        s.put("sleepSound", "Silence");
+        check(new Config(s).sleepSound == Config.Sound.NONE, "the old silence setting still reads");
         s.put("sound", "No sound");
-        s.put("sleepSound", "Fade to silence");
         Scene.mix(new Config(s), 30_000, m);
-        check(m.music == 0 && m.waves == 0, "no sound means no sound");
+        check(m.soother == 0 && m.night == 0, "no sound means no sound");
     }
 
     static void stars() {
@@ -230,7 +252,16 @@ public final class NightLightTest {
         Map<String, Object> classic = new HashMap<>();
         classic.put("sound", "Brahms & Mozart lullabies");
         Config cc = new Config(classic);
-        check(cc.sound == Config.Sound.CLASSIC && Scene.mix(cc, 30_000, null).music > 0.99, "classic lullabies play in the show");
+        check(cc.sound == Config.Sound.CLASSIC && Scene.mix(cc, 30_000, null).soother > 0, "classic lullabies play in the soother");
+
+        for (LullabySynth.Noise colour : LullabySynth.Noise.values()) {
+            LullabySynth hush = new LullabySynth(rate, 9);
+            hush.setNoise(colour);
+            hush.setLevels(1, 0, 0, 1, 1);
+            hush.settle();
+            Stats ns = render(hush, rate * 10);
+            check(ns.rms > 2000 && ns.rms < 12000 && ns.peak < 32767, colour + " noise is steady and not clipped: rms " + ns.rms);
+        }
 
         LullabySynth waves = new LullabySynth(rate, 7);
         waves.setLevels(1, 0, 1, 1);

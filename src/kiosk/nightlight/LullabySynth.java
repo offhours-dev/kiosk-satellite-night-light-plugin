@@ -6,7 +6,7 @@ import java.util.Random;
 /**
  * A small generative lullaby: a music box (or soft bell) melody in 3/4 over warm pads and a soft bass, plus an
  * ocean-waves layer. Every phrase is new but follows a repeating motif, so it sounds composed rather than random.
- * It can also play classic lullabies on the music box instead. Everything is synthesised here, so there are no audio
+ * It can also play classic lullabies on the music box instead, and a white, pink or brown noise layer. Everything is synthesised here, so there are no audio
  * files and nothing to license: the melodies are long in the public domain.
  *
  * Pure Java with no Android classes, so tests can render it on the desktop. Not thread-safe: call it from the audio
@@ -86,16 +86,20 @@ final class LullabySynth {
     /** Quiet eighths between one song and the next. */
     private static final int SONG_GAP = 12;
 
+    /** Noise colours: white is hiss, pink is softer, brown is a low rumble like a distant waterfall. */
+    enum Noise { WHITE, PINK, BROWN }
+
     private final int rate;
     private final Random rnd;
 
     // Levels, smoothed per sample so changes never click.
-    private double masterTarget, musicTarget, wavesTarget;
-    private double master, music, waves;
+    private double masterTarget, musicTarget, wavesTarget, noiseTarget;
+    private double master, music, waves, noise;
     private final double smoothK;
     private double tempo = 1;
     private boolean dreamy;
     private boolean songs;
+    private Noise noiseColour = Noise.BROWN;
 
     // Song position.
     private long step = -1;
@@ -126,6 +130,9 @@ final class LullabySynth {
     private double wavePhaseA, wavePhaseB = 0.37, brown, waveLow, waveCoef;
     private int waveCounter;
 
+    // Noise.
+    private double pink0, pink1, pink2, brownNoise;
+
     LullabySynth(int sampleRate, long seed) {
         rate = sampleRate;
         rnd = new Random(seed);
@@ -149,11 +156,21 @@ final class LullabySynth {
         startSong();
     }
 
+    void setNoise(Noise colour) {
+        if (colour != null) noiseColour = colour;
+    }
+
     /** master, music and waves from 0 to 1; tempo multiplies the speed, 0.5 to 1.5. */
     void setLevels(double master, double music, double waves, double tempo) {
+        setLevels(master, music, waves, 0, tempo);
+    }
+
+    /** master, music, waves and noise from 0 to 1; tempo multiplies the speed, 0.5 to 1.5. */
+    void setLevels(double master, double music, double waves, double noise, double tempo) {
         masterTarget = clamp(master);
         musicTarget = clamp(music);
         wavesTarget = clamp(waves);
+        noiseTarget = clamp(noise);
         this.tempo = Math.max(0.5, Math.min(1.5, tempo));
     }
 
@@ -162,6 +179,7 @@ final class LullabySynth {
         master = masterTarget;
         music = musicTarget;
         waves = wavesTarget;
+        noise = noiseTarget;
     }
 
     double currentMaster() {
@@ -174,6 +192,7 @@ final class LullabySynth {
             master += (masterTarget - master) * smoothK;
             music += (musicTarget - music) * smoothK;
             waves += (wavesTarget - waves) * smoothK;
+            noise += (noiseTarget - noise) * smoothK;
 
             if (--untilNextStep <= 0) {
                 step++;
@@ -184,6 +203,7 @@ final class LullabySynth {
             double mixed = 0;
             if (music > 1e-4) mixed += music * renderMusic();
             if (waves > 1e-4) mixed += waves * renderWaves();
+            if (noise > 1e-4) mixed += noise * renderNoise();
             double x = mixed * master * 1.6;
             // Gentle soft clip, then leave headroom.
             if (x > 3) x = 3; else if (x < -3) x = -3;
@@ -416,6 +436,24 @@ final class LullabySynth {
         brown = brown * 0.996 + white * 0.04;
         waveLow += (white - waveLow) * waveCoef;
         return (waveLow * 0.9 + brown * 0.8) * env * 0.55;
+    }
+
+    /** Noise at about the same loudness in every colour. */
+    private double renderNoise() {
+        double white = rnd.nextDouble() * 2 - 1;
+        switch (noiseColour) {
+            case WHITE:
+                return white * 0.3;
+            case PINK:
+                // Paul Kellet's economy pink filter.
+                pink0 = 0.99765 * pink0 + white * 0.0990460;
+                pink1 = 0.96300 * pink1 + white * 0.2965164;
+                pink2 = 0.57000 * pink2 + white * 1.0526913;
+                return (pink0 + pink1 + pink2 + white * 0.1848) * 0.1;
+            default:
+                brownNoise = (brownNoise + 0.02 * white) / 1.02;
+                return brownNoise * 3.0;
+        }
     }
 
     private static double midiHz(int midi) {

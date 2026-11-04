@@ -84,30 +84,57 @@ final class AudioOut implements Runnable {
         }
     }
 
+    /** Sets a synth up to play one sound at a level. */
+    private static void play(LullabySynth synth, Config.Sound sound, double level, double tempo) {
+        synth.setDreamy(sound == Config.Sound.DREAMY);
+        synth.setSongs(sound == Config.Sound.CLASSIC);
+        if (sound == Config.Sound.WHITE) synth.setNoise(LullabySynth.Noise.WHITE);
+        else if (sound == Config.Sound.PINK) synth.setNoise(LullabySynth.Noise.PINK);
+        else if (sound == Config.Sound.BROWN) synth.setNoise(LullabySynth.Noise.BROWN);
+        synth.setLevels(level, sound.music() ? 1 : 0, sound == Config.Sound.WAVES ? 1 : 0, sound.noise() ? 1 : 0, tempo);
+    }
+
+    /** True while a synth is heard or on its way in or out. */
+    private static boolean audible(LullabySynth synth, double level) {
+        return level > 1e-4 || synth.currentMaster() > 1e-4;
+    }
+
     private void loop(AudioTrack track) throws InterruptedException {
-        LullabySynth synth = new LullabySynth(RATE, System.nanoTime());
+        // The soother and the night light each have a synth, so their sounds can differ and still crossfade.
+        long seed = System.nanoTime();
+        LullabySynth soother = new LullabySynth(RATE, seed);
+        LullabySynth night = new LullabySynth(RATE, seed + 1);
         Scene.Mix mix = new Scene.Mix();
         short[] chunk = new short[RATE / 20];
+        short[] other = new short[chunk.length];
         boolean playing = false;
         while (!Thread.currentThread().isInterrupted()) {
             Config c = source.config();
             Scene.mix(c, source.elapsed(), source.fade(), mix);
             boolean stopping = !running;
-            double master = stopping ? 0 : Math.pow(c.volume, 1.5);
-            boolean silent = master * Math.max(mix.music, mix.waves) < 1e-4;
-            synth.setDreamy(c.sound == Config.Sound.DREAMY);
-            synth.setSongs(c.sound == Config.Sound.CLASSIC);
-            synth.setLevels(master, mix.music, mix.waves, mix.tempo);
+            double sootherLevel = stopping ? 0 : mix.soother;
+            double nightLevel = stopping ? 0 : mix.night;
+            play(soother, c.sound, sootherLevel, mix.tempo);
+            play(night, c.sleepSound, nightLevel, Scene.NIGHT_TEMPO);
+            boolean sootherOn = audible(soother, sootherLevel);
+            boolean nightOn = audible(night, nightLevel);
 
-            if (stopping && (synth.currentMaster() < 0.002 || System.nanoTime() - stopRequested > STOP_FADE_NS)) return;
-            if (silent && synth.currentMaster() * Math.max(mix.music, mix.waves) < 1e-4 && !stopping) {
-                // Nothing to hear, for example the silent sleep light: rest the speaker and check again shortly.
+            if (stopping && ((!sootherOn && !nightOn) || System.nanoTime() - stopRequested > STOP_FADE_NS)) return;
+            if (!sootherOn && !nightOn) {
+                // Nothing to hear, for example a silent night light: rest the speaker and check again shortly.
                 if (playing) { track.pause(); track.flush(); playing = false; }
                 Thread.sleep(1000);
                 continue;
             }
             if (!playing) { track.play(); playing = true; }
-            synth.render(chunk, 0, chunk.length);
+            if (sootherOn) soother.render(chunk, 0, chunk.length);
+            else java.util.Arrays.fill(chunk, (short) 0);
+            if (nightOn) {
+                night.render(other, 0, other.length);
+                for (int i = 0; i < chunk.length; i++) {
+                    chunk[i] = (short) Math.max(-32767, Math.min(32767, chunk[i] + other[i]));
+                }
+            }
             int offset = 0;
             while (offset < chunk.length) {
                 int wrote = track.write(chunk, offset, chunk.length - offset);

@@ -7,9 +7,9 @@ import android.widget.TextView;
 import me.jxl.kiosk.plugins.KsTheme;
 
 /**
- * The button on the night light: Go to sleep starts the show, End fades it back to the night light. It is drawn dim
- * in the sleep light colour so it does not light up a dark bedroom, and checks once a second so the label follows
- * the show ending on its own. In Night mode it takes the Night colour, or hides.
+ * The button on the night light: Soother starts the soother, End soother fades it back to the night light. It is
+ * drawn dim in the night light colour so it does not light up a dark bedroom, and checks once a second so the label
+ * follows the soother ending on its own. In Night mode it takes the Night colour, or hides.
  */
 final class SleepButton extends TextView {
     interface Source {
@@ -43,7 +43,7 @@ final class SleepButton extends TextView {
         Config c = source.config();
         boolean night = source.night();
         int warm = night ? c.nightColor : c.warmColor;
-        setText(source.showing() ? "End" : "Go to sleep");
+        setText(source.showing() ? "End soother" : "Soother");
         setTextColor(0x99000000 | warm);
         GradientDrawable shape = new GradientDrawable();
         shape.setCornerRadius(theme.px(100));

@@ -7,37 +7,53 @@
   "minAndroidSdk": 24,
   "minAppVersion": "2026.10.45",
   "entryClass": "kiosk.nightlight.NightLightPlugin",
-  "description": "A bedtime night light for a child's room. As a screensaver it shows a dim warm light. Press Go to sleep for gentle sleepy music while the screen drifts through soft colours, which then fades back to the warm light.",
+  "description": "A bedtime night light for a child's room. As a screensaver it shows a dim warm night light. Press Soother for gentle sleepy music or sounds while the screen drifts through soft colours, which then fades back to the night light.",
   "author": "heazlewood",
   "license": "Apache-2.0",
-  "capabilities": [
-    "screensaver",
-    "screensaver.mode",
-    "host.control",
-    "host.read"
-  ],
+  "capabilities": ["screensaver", "screensaver.mode", "host.control", "host.read"],
   "icon": "icon.png",
   "settings": [
     {
       "key": "colourMinutes",
       "type": "number",
-      "title": "Colour show length",
+      "title": "Soother length",
       "default": 30,
       "min": 5,
       "max": 120,
       "step": 5,
       "unit": "min",
-      "group": "Colours",
-      "description": "How long the go to sleep show's colours and music play before they fade back to the warm sleep light."
+      "group": "Soother",
+      "description": "How long the soother plays before it fades back to the night light."
+    },
+    {
+      "key": "sound",
+      "type": "select",
+      "title": "Soother sound",
+      "default": "Music box lullaby",
+      "options": ["Music box lullaby", "Brahms & Mozart lullabies", "Dreamy pads", "Ocean waves", "White noise", "Pink noise", "Brown noise", "No sound"],
+      "group": "Soother",
+      "description": "What the soother plays. The music box lullaby is made up as it plays, so it never repeats exactly. Brahms & Mozart plays Brahms' Lullaby and Twinkle, Twinkle on the music box. White noise is a steady hiss, pink noise is softer and brown noise is a deep rumble."
+    },
+    {
+      "key": "volume",
+      "type": "number",
+      "title": "Soother volume",
+      "default": 40,
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "group": "Soother",
+      "description": "How loud the soother plays, on top of the device's media volume."
     },
     {
       "key": "palette",
       "type": "select",
-      "title": "Colours",
+      "title": "Soother colours",
       "default": "Rainbow",
       "options": ["Rainbow", "Ocean", "Sunset", "Aurora", "Candy"],
-      "group": "Colours",
-      "description": "The set of colours the screen drifts through."
+      "group": "Soother",
+      "description": "The set of colours the soother drifts through."
     },
     {
       "key": "colourStyle",
@@ -45,8 +61,8 @@
       "title": "Colour style",
       "default": "Glow",
       "options": ["Glow", "Liquid"],
-      "group": "Colours",
-      "description": "How the go to sleep show looks. Glow is one soft glow that drifts through the colours. Liquid is a few soft blobs of colour that slowly drift and blend into each other. The night light is not affected."
+      "group": "Soother",
+      "description": "How the soother looks. Glow is one soft glow that drifts through the colours. Liquid is a few soft blobs of colour that slowly drift and blend into each other. The night light is not affected."
     },
     {
       "key": "colourSpeed",
@@ -54,7 +70,7 @@
       "title": "Colour speed",
       "default": "Slow",
       "options": ["Very slow", "Slow", "Gentle"],
-      "group": "Colours",
+      "group": "Soother",
       "description": "How quickly one colour melts into the next."
     },
     {
@@ -66,79 +82,71 @@
       "max": 100,
       "step": 5,
       "unit": "%",
-      "group": "Colours",
-      "description": "How bright the colours are. They also dim a little as the show goes on."
+      "group": "Soother",
+      "description": "How bright the soother colours are. They also dim a little as the soother goes on."
     },
     {
       "key": "fadeMinutes",
       "type": "number",
-      "title": "Fade to sleep light",
+      "title": "Fade to night light",
       "default": 3,
       "min": 1,
       "max": 15,
       "step": 1,
       "unit": "min",
-      "group": "Sleep light",
-      "description": "How long the colours and music take to fade back into the sleep light, at the end of the show or after End."
+      "group": "Soother",
+      "description": "How long the soother takes to fade into the night light when it finishes by itself. End fades it in about 20 seconds."
     },
     {
       "key": "nightWaves",
       "type": "boolean",
       "title": "Colour waves",
       "default": false,
-      "group": "Sleep light",
-      "description": "Instead of one steady colour, the night light drifts very slowly through the show's colours, at the sleep light brightness."
+      "group": "Night light",
+      "description": "Instead of one steady colour, the night light drifts very slowly through the soother's colours, just as dim."
     },
     {
       "key": "warmColor",
       "type": "color",
-      "title": "Sleep light colour",
+      "title": "Night light colour",
       "default": "#FF9440",
-      "group": "Sleep light",
+      "group": "Night light",
       "visibleWhen": { "key": "nightWaves", "equals": false },
       "description": "A warm orange or amber is kindest to sleep."
     },
     {
       "key": "warmBrightness",
       "type": "number",
-      "title": "Sleep light brightness",
+      "title": "Night light brightness",
       "default": 25,
       "min": 2,
       "max": 60,
       "step": 1,
       "unit": "%",
-      "group": "Sleep light",
-      "description": "How bright the warm night light glows."
-    },
-    {
-      "key": "sound",
-      "type": "select",
-      "title": "Music",
-      "default": "Music box lullaby",
-      "options": ["Music box lullaby", "Brahms & Mozart lullabies", "Dreamy pads", "Ocean waves", "No sound"],
-      "group": "Sound",
-      "description": "What plays during the go to sleep show. The music box lullaby is made up as it plays, so it never repeats exactly. Brahms & Mozart plays Brahms' Lullaby and Twinkle, Twinkle on the music box."
-    },
-    {
-      "key": "volume",
-      "type": "number",
-      "title": "Volume",
-      "default": 40,
-      "min": 0,
-      "max": 100,
-      "step": 5,
-      "unit": "%",
-      "group": "Sound",
-      "description": "Music volume, on top of the device's media volume."
+      "group": "Night light",
+      "description": "How bright the night light glows."
     },
     {
       "key": "sleepSound",
       "type": "select",
-      "title": "During the sleep light",
-      "default": "Fade to silence",
-      "options": ["Fade to silence", "Keep playing quietly", "Ocean waves"],
-      "group": "Sound",
-      "description": "What plays while the warm night light shows, including when the screensaver first starts."
+      "title": "Night light sound",
+      "default": "No sound",
+      "options": ["Music box lullaby", "Brahms & Mozart lullabies", "Dreamy pads", "Ocean waves", "White noise", "Pink noise", "Brown noise", "No sound"],
+      "group": "Night light",
+      "description": "What plays with the night light all night, including when the screensaver first starts. The same choices as the soother, picked separately. The soother fades into it."
+    },
+    {
+      "key": "nightVolume",
+      "type": "number",
+      "title": "Night light volume",
+      "default": 25,
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "group": "Night light",
+      "visibleWhen": { "key": "sleepSound", "notEquals": "No sound" },
+      "description": "How loud the night light sound plays, separate from the soother, on top of the device's media volume."
     },
     {
       "key": "countdown",
@@ -209,29 +217,28 @@
   "commands": [
     {
       "id": "startNightLight",
-      "title": "Start night light"
+      "title": "Show night light"
     },
     {
       "id": "goToSleep",
-      "title": "Go to sleep"
+      "title": "Start soother"
     },
     {
       "id": "sleepNow",
-      "title": "End go to sleep"
+      "title": "End soother"
     },
     {
       "id": "toggleSleep",
-      "title": "Go to sleep or end"
+      "title": "Start or end soother"
     },
     {
       "id": "stopNightLight",
-      "title": "Stop night light"
+      "title": "Close Night Light"
     }
   ],
   "groups": [
-    { "title": "Colours" },
-    { "title": "Sleep light" },
-    { "title": "Sound" },
+    { "title": "Soother" },
+    { "title": "Night light" },
     { "title": "Countdown" },
     { "title": "Night mode" }
   ]

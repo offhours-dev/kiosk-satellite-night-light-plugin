@@ -15,9 +15,9 @@ import android.view.View;
 import java.util.Calendar;
 
 /**
- * The screensaver: the warm night light, or during the go to sleep show a soft glow that drifts slowly through the
- * palette before settling back. It redraws about 15 times a second during the show and every couple of seconds
- * once it is steady.
+ * The screensaver: the night light, or during the soother a soft glow that drifts slowly through the palette before
+ * settling back. It redraws about 15 times a second during the soother and every couple of seconds once it is
+ * steady.
  */
 final class GlowView extends View {
     interface Source {
@@ -88,7 +88,7 @@ final class GlowView extends View {
         if (shown) postInvalidateDelayed(next);
     }
 
-    /** The liquid style's soft blobs, added over the dimmed glow while the show plays. */
+    /** The liquid style's soft blobs, added over the dimmed glow while the soother plays. */
     private void drawLiquid(Canvas canvas, int w, int h, Config c, long elapsed, double fade) {
         int sw = Math.max(1, w / LIQUID_SCALE);
         int sh = Math.max(1, h / LIQUID_SCALE);

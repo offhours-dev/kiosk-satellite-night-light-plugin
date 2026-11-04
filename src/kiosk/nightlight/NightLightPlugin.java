@@ -16,9 +16,9 @@ import me.jxl.kiosk.plugins.OverlayFactory;
 import me.jxl.kiosk.plugins.PluginHost;
 
 /**
- * A night light for a child's room, drawn as a Kiosk Satellite screensaver. It opens on a dim warm light. A button
- * on it starts the go to sleep show: sleepy music while the screen drifts through soft colours, which fades back to
- * the warm light when it is over or when End is pressed. KS still decides when the screensaver starts and ends; this
+ * A night light for a child's room, drawn as a Kiosk Satellite screensaver. It opens on the night light, a dim warm
+ * light. A button on it starts the soother: sleepy music or sounds while the screen drifts through soft colours,
+ * which fades back to the night light when it is over or when End soother is pressed. KS still decides when the screensaver starts and ends; this
  * plugin only draws it and plays the music. A double tap closes it.
  */
 public final class NightLightPlugin implements KioskPlugin, GlowView.Source, AudioOut.Source, SleepButton.Source {
@@ -41,7 +41,7 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
     private int views;
     /** True while this plugin, not the user's Screensaver mode, chose the night light. */
     private boolean overriding;
-    /** True when KS passes taps to the screensaver, so it can have its Go to sleep button. */
+    /** True when KS passes taps to the screensaver, so it can have its Soother button. */
     private volatile boolean touch;
     /** The room is dark by the light sensor, for Night mode. */
     private volatile boolean dark;
@@ -123,7 +123,7 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
 
     private void goToSleep(PluginHost h) {
         session.startShow();
-        h.status("Go to sleep show playing.", false);
+        h.status("Soother playing.", false);
         ensureShown(h);
     }
 
@@ -193,7 +193,7 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
         }
         PluginHost h = host;
         if (h == null) return;
-        h.status(session.showing(config.colourMs) ? "Go to sleep show playing." : "Night light on.", false);
+        h.status(session.showing(config.colourMs) ? "Soother playing." : "Night light on.", false);
     }
 
     /** Called on the main thread when KS removes the view. */

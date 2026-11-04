@@ -6,23 +6,38 @@ import java.util.Map;
 
 /** An immutable snapshot of the plugin settings. Read from any thread. */
 final class Config {
-    enum Sound { MUSIC_BOX, CLASSIC, DREAMY, WAVES, NONE }
-    enum SleepSound { SILENCE, QUIET, WAVES }
+    /** The sounds the soother and the night light each choose from. */
+    enum Sound {
+        MUSIC_BOX, CLASSIC, DREAMY, WAVES, WHITE, PINK, BROWN, NONE;
+
+        boolean music() {
+            return this == MUSIC_BOX || this == CLASSIC || this == DREAMY;
+        }
+
+        boolean noise() {
+            return this == WHITE || this == PINK || this == BROWN;
+        }
+    }
 
     final long colourMs;
     final long fadeMs;
     final int[] palette;
     final double secondsPerColour;
     final double colourBrightness;
-    /** Liquid colour style: soft colour blobs that drift and blend during the show, instead of one glow. */
+    /** Liquid colour style: soft colour blobs that drift and blend during the soother, instead of one glow. */
     final boolean liquid;
     final int warmColor;
     /** The night light drifts very slowly through the palette instead of one steady colour. */
     final boolean nightWaves;
     final double warmBrightness;
+    /** The soother's sound. */
     final Sound sound;
+    /** Soother volume, from 0 to 1. */
     final double volume;
-    final SleepSound sleepSound;
+    /** The night light's sound, chosen separately from the soother's. */
+    final Sound sleepSound;
+    /** Night light volume, from 0 to 1, separate from the soother's. */
+    final double nightVolume;
     final boolean countdown;
     /** Bed and up times in ms since local midnight. */
     final long bedMs;
@@ -50,19 +65,12 @@ final class Config {
         warmColor = color(s, "warmColor", 0xFF9440);
         nightWaves = bool(s, "nightWaves", false);
         warmBrightness = number(s, "warmBrightness", 25, 1, 100) / 100.0;
-        switch (string(s, "sound", "Music box lullaby")) {
-            case "Brahms & Mozart lullabies": sound = Sound.CLASSIC; break;
-            case "Dreamy pads": sound = Sound.DREAMY; break;
-            case "Ocean waves": sound = Sound.WAVES; break;
-            case "No sound": sound = Sound.NONE; break;
-            default: sound = Sound.MUSIC_BOX;
-        }
+        sound = sound(string(s, "sound", "Music box lullaby"), Sound.MUSIC_BOX);
         volume = number(s, "volume", 40, 0, 100) / 100.0;
-        switch (string(s, "sleepSound", "Fade to silence")) {
-            case "Keep playing quietly": sleepSound = SleepSound.QUIET; break;
-            case "Ocean waves": sleepSound = SleepSound.WAVES; break;
-            default: sleepSound = SleepSound.SILENCE;
-        }
+        String night = string(s, "sleepSound", "No sound");
+        // Earlier versions could carry the soother's sound on through the night.
+        sleepSound = "Keep playing quietly".equals(night) || "Soother sound".equals(night) ? sound : sound(night, Sound.NONE);
+        nightVolume = number(s, "nightVolume", 25, 0, 100) / 100.0;
         countdown = bool(s, "countdown", false);
         bedMs = time(s, "bedTime", "19:00");
         wakeMs = time(s, "wakeTime", "07:00");
@@ -70,6 +78,22 @@ final class Config {
         nightLux = number(s, "nightLux", 5, 1, 100);
         nightColor = color(s, "nightColor", 0xA63A32);
         nightHide = bool(s, "nightHide", false);
+    }
+
+    static Sound sound(String name, Sound fallback) {
+        switch (name) {
+            case "Music box lullaby": return Sound.MUSIC_BOX;
+            case "Brahms & Mozart lullabies": return Sound.CLASSIC;
+            case "Dreamy pads": return Sound.DREAMY;
+            case "Ocean waves": return Sound.WAVES;
+            case "White noise": return Sound.WHITE;
+            case "Pink noise": return Sound.PINK;
+            case "Brown noise": return Sound.BROWN;
+            case "No sound":
+            case "Silence":
+            case "Fade to silence": return Sound.NONE;
+            default: return fallback;
+        }
     }
 
     static double number(Map<String, Object> s, String key, double fallback, double min, double max) {

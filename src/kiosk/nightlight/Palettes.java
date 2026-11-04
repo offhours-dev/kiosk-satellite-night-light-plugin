@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 package kiosk.nightlight;
 
-/** Colour sets for the colour show, chosen to be soft rather than neon. Values are 0xRRGGBB. */
+/** Colour sets for the soother, chosen to be soft rather than neon. Values are 0xRRGGBB. */
 final class Palettes {
     static final String[] NAMES = {"Rainbow", "Ocean", "Sunset", "Aurora", "Candy"};
 
