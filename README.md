@@ -48,9 +48,9 @@ Kiosk Satellite still controls when the screensaver starts and stops, so check t
 
 ### Night mode
 
-Like the Clock screensaver's Night mode, this uses the device's light sensor. When the room is at or below the **Light level** (5 lx by default), the Soother button, the hint and the stars turn the **Night color**, a muted red by default. With **Hide button and stars** on they disappear instead, leaving only the night light. Night mode ends a quarter above the light level, so the colours never flicker. The night light itself keeps its own colour and brightness.
+Like the Clock screensaver's Night mode, this uses the device's light sensor. When the room is at or below the **Light level** (5 lx by default), the Soother button, the hint, the stars and Kiosk Satellite's corner widgets and At a Glance row turn the **Night color**, a muted red by default. With **Hide button and stars** on, the button, hint and stars disappear instead, leaving only the night light and the tinted widgets. Night mode ends a quarter above the light level, so the colours never flicker. The night light itself keeps its own colour and brightness.
 
-Kiosk Satellite's own corner widgets and At a Glance row only follow the Clock screensaver's Night mode, so they keep their usual colours over the night light.
+Tinting the widgets needs a Kiosk Satellite release with screensaver tints. On older releases the widgets keep their usual colours.
 
 ## Settings
 

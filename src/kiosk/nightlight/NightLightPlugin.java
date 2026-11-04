@@ -45,6 +45,8 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
     private volatile boolean touch;
     /** The room is dark by the light sensor, for Night mode. */
     private volatile boolean dark;
+    /** The colour KS's widgets are tinted, or null while they keep their own. */
+    private String tint;
 
     public NightLightPlugin() {
         this(System::currentTimeMillis);
@@ -80,6 +82,7 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
 
     @Override public void configure(Map<String, Object> settings) {
         config = new Config(settings);
+        updateTint();
     }
 
     /** Follows the room's light level for Night mode, the way the Clock screensaver does. */
@@ -96,11 +99,38 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
 
     private void light(Object lux) {
         if (lux instanceof Number) dark = dark(dark, ((Number) lux).doubleValue(), config.nightLux);
+        updateTint();
     }
 
     /** Dark at or below the threshold, and light again only a quarter above it, so it never flickers. */
     static boolean dark(boolean wasDark, double lux, double threshold) {
         return lux <= (wasDark ? threshold * 1.25 : threshold);
+    }
+
+    /** In Night mode KS's corner widgets and At a Glance row take the Night color, like the rest of the screen. */
+    static String tint(boolean night, boolean onScreen, int nightColor) {
+        return night && onScreen ? String.format("#%06X", nightColor & 0xFFFFFF) : null;
+    }
+
+    /** Tints KS's widgets while Night mode is on, and gives them their own colours back when it ends. */
+    private synchronized void updateTint() {
+        PluginHost h = host;
+        if (h == null) return;
+        String want = tint(night(), views > 0, config.nightColor);
+        if (want == null ? tint == null : want.equals(tint)) return;
+        tint = want;
+        try {
+            if (want != null) {
+                h.executeCommand("setScreensaverTint", Collections.singletonMap("color", want), (ok, d, e) -> {
+                    if (!ok) h.log("Could not tint the widgets: " + e);
+                });
+            } else {
+                h.executeCommand("clearScreensaverTint", Collections.emptyMap(), (ok, d, e) -> {});
+            }
+        } catch (RuntimeException | LinkageError olderHost) {
+            // A KS without widget tints: the widgets keep their own colours.
+            h.log("No widget tint: " + olderHost);
+        }
     }
 
     @Override public void execute(String command, Map<String, Object> arguments) {
@@ -194,6 +224,9 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
         PluginHost h = host;
         if (h == null) return;
         h.status(session.showing(config.colourMs) ? "Soother playing." : "Night light on.", false);
+        // KS drops the tint whenever the screensaver leaves the screen, so set it again each time it shows.
+        tint = null;
+        updateTint();
     }
 
     /** Called on the main thread when KS removes the view. */
@@ -206,6 +239,7 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
     private synchronized void ended() {
         pendingEnd = null;
         if (views > 0) return;
+        tint = null;
         session.ended();
         if (audio != null) audio.stop();
         audio = null;

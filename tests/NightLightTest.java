@@ -406,6 +406,13 @@ public final class NightLightTest {
         check(plugin.night(), "stays on just above the light level");
         plugin.onEvent("ks.device.light", Collections.singletonMap("lux", 50.0));
         check(!plugin.night(), "and ends in a lit room");
+        check("#A63A32".equals(NightLightPlugin.tint(true, true, 0xA63A32)), "night mode tints the widgets the night color");
+        check("#00000A".equals(NightLightPlugin.tint(true, true, 0x0A)), "tints are six digits");
+        check(NightLightPlugin.tint(false, true, 0xA63A32) == null, "no tint in a lit room");
+        check(NightLightPlugin.tint(true, false, 0xA63A32) == null, "no tint while the screensaver is not showing");
+        host.commands.clear();
+        plugin.onEvent("ks.device.light", Collections.singletonMap("lux", 1));
+        check(!host.commands.contains("setScreensaverTint"), "never tints with no screensaver on screen: " + host.commands);
 
         boolean threw = false;
         try { plugin.execute("nope", Collections.emptyMap()); } catch (IllegalArgumentException e) { threw = true; }

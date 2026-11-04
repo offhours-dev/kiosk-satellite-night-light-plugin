@@ -189,7 +189,7 @@
       "title": "Night mode",
       "default": false,
       "group": "Night mode",
-      "description": "Recolours the button, hint and stars when the room gets dark, like the Clock screensaver's Night mode. Needs a device with a light sensor."
+      "description": "Recolours the button, hint, stars and Kiosk Satellite's widgets when the room gets dark, like the Clock screensaver's Night mode. Needs a device with a light sensor."
     },
     {
       "key": "nightLux",
@@ -211,7 +211,7 @@
       "default": "#A63A32",
       "group": "Night mode",
       "visibleWhen": { "key": "nightMode", "equals": true },
-      "description": "The colour of the button, hint and stars in the dark. Muted red by default, which is kindest to sleepy eyes."
+      "description": "The colour of the button, hint, stars and widgets in the dark. Muted red by default, which is kindest to sleepy eyes."
     },
     {
       "key": "nightHide",
