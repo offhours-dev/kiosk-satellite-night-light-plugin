@@ -7,6 +7,11 @@ Night Light has two modes:
 - **Night light**: a dim, warm light that stays on all night, with optional quiet sound. The screensaver always opens on it.
 - **Soother**: gentle sleepy music or sounds while the screen drifts slowly through soft colours. Press the **Soother** button in the corner to start it. Press **End soother**, or let it finish (30 minutes by default), and it fades back to the night light.
 
+| Soother | Night light with the bedtime countdown |
+| --- | --- |
+| ![The soother in the Liquid style: soft colours drifting, then End soother fades back to the night light](docs/soother.gif) | ![The night light's stars going out one by one between bed time and up time](docs/night-light-stars.gif) |
+| The Liquid style, sped up 20 times, then End soother | A night from 7 pm to 7 am, sped up |
+
 What it offers:
 
 - **Sound made on the device.** A music box lullaby, dreamy pads or ocean waves, composed as it plays so it never repeats exactly. Or Brahms' Lullaby and Mozart's Twinkle, Twinkle on the music box. It slows down a little as the soother goes on. There are no audio files and nothing to download.
@@ -95,7 +100,7 @@ python3 tools/build.py
 
 The ZIP lands in `dist/`. Install it for testing with **Plugin Manager > Developer Tools > Install from ZIP**.
 
-To publish, push to `main`. The included workflow tests and builds the plugin, then releases it under the date: `v2026.1104.1` for the first release on 4 November 2026, `v2026.1104.2` for the second that day. Pushes that only change Markdown files or the licence do not release. You can still create a release by hand, and the workflow builds and attaches the plugin to it. Anyone can add the plugin with **Plugin Manager > Add plugin** and the repository URL.
+To publish, push to `main`. The included workflow tests and builds the plugin, then releases it under the date: `v2026.1104.1` for the first release on 4 November 2026, `v2026.1104.2` for the second that day. Pushes that only change Markdown files, `docs/` or the licence do not release. You can still create a release by hand, and the workflow builds and attaches the plugin to it. Anyone can add the plugin with **Plugin Manager > Add plugin** and the repository URL.
 
 ## License
 

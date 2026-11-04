@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths-ignore:
       - '**.md'
+      - 'docs/**'
       - 'LICENSE'
   # A release published by hand builds and attaches the plugin to it.
   release:
