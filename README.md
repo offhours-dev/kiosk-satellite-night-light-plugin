@@ -94,7 +94,7 @@ python3 tools/build.py
 
 The ZIP lands in `dist/`. Install it for testing with **Plugin Manager > Developer Tools > Install from ZIP**.
 
-To publish, push this repository to GitHub and create a release, for example tagged `v1.0.0`. The included workflow builds and attaches the plugin. Anyone can then add it with **Plugin Manager > Add plugin** and the repository URL.
+To publish, push to `main`. The included workflow tests and builds the plugin, then releases it under the date: `v2026.1104.1` for the first release on 4 November 2026, `v2026.1104.2` for the second that day. Pushes that only change Markdown files or the licence do not release. You can still create a release by hand, and the workflow builds and attaches the plugin to it. Anyone can add the plugin with **Plugin Manager > Add plugin** and the repository URL.
 
 ## License
 

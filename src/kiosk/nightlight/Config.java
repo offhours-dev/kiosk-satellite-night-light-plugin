@@ -35,7 +35,7 @@ final class Config {
     /** Soother volume, from 0 to 1. */
     final double volume;
     /** The night light's sound, chosen separately from the soother's. */
-    final Sound sleepSound;
+    final Sound nightSound;
     /** Night light volume, from 0 to 1, separate from the soother's. */
     final double nightVolume;
     final boolean countdown;
@@ -67,9 +67,8 @@ final class Config {
         warmBrightness = number(s, "warmBrightness", 25, 1, 100) / 100.0;
         sound = sound(string(s, "sound", "Music box lullaby"), Sound.MUSIC_BOX);
         volume = number(s, "volume", 40, 0, 100) / 100.0;
-        String night = string(s, "sleepSound", "No sound");
-        // Earlier versions could carry the soother's sound on through the night.
-        sleepSound = "Keep playing quietly".equals(night) || "Soother sound".equals(night) ? sound : sound(night, Sound.NONE);
+        // A new key: earlier versions saved values under sleepSound that are not choices any more.
+        nightSound = sound(string(s, "nightSound", "No sound"), Sound.NONE);
         nightVolume = number(s, "nightVolume", 25, 0, 100) / 100.0;
         countdown = bool(s, "countdown", false);
         bedMs = time(s, "bedTime", "19:00");
@@ -89,9 +88,7 @@ final class Config {
             case "White noise": return Sound.WHITE;
             case "Pink noise": return Sound.PINK;
             case "Brown noise": return Sound.BROWN;
-            case "No sound":
-            case "Silence":
-            case "Fade to silence": return Sound.NONE;
+            case "No sound": return Sound.NONE;
             default: return fallback;
         }
     }

@@ -25,19 +25,20 @@ public final class NightLightTest {
         Config d = new Config(Collections.emptyMap());
         check(d.colourMs == 30 * 60_000L, "default colour show is 30 minutes");
         check(d.warmColor == 0xFF9440, "default warm colour");
-        check(d.sound == Config.Sound.MUSIC_BOX && d.sleepSound == Config.Sound.NONE, "default sound");
+        check(d.sound == Config.Sound.MUSIC_BOX && d.nightSound == Config.Sound.NONE, "default sound");
         Map<String, Object> s = new HashMap<>();
         s.put("colourMinutes", 10);
         s.put("warmColor", "#ff0000");
         s.put("warmBrightness", 500);
         s.put("sound", "Ocean waves");
-        s.put("sleepSound", "Keep playing quietly");
         s.put("palette", "Ocean");
         Config c = new Config(s);
         check(c.colourMs == 600_000L, "colour minutes");
         check(c.warmColor == 0xFF0000, "warm colour parses");
         check(c.warmBrightness == 1.0, "brightness clamps");
-        check(c.sound == Config.Sound.WAVES && c.sleepSound == Config.Sound.WAVES, "the old keep playing setting carries the soother's sound on");
+        check(c.sound == Config.Sound.WAVES && c.nightSound == Config.Sound.NONE, "sound choices");
+        s.put("sleepSound", "Fade to silence");
+        check(new Config(s).nightSound == Config.Sound.NONE, "an old saved night sound is ignored");
         check(c.palette == Palettes.OCEAN, "palette");
         s.put("warmColor", "nonsense");
         check(new Config(s).warmColor == 0xFF9440, "bad colour falls back");
@@ -123,15 +124,15 @@ public final class NightLightTest {
             "White noise", "Pink noise", "Brown noise", "No sound"};
         for (String name : names) {
             s.put("sound", name);
-            s.put("sleepSound", name);
+            s.put("nightSound", name);
             Config both = new Config(s);
-            check(both.sound == both.sleepSound && (both.sound == Config.Sound.NONE) == name.equals("No sound"), name + " in both modes");
+            check(both.sound == both.nightSound && (both.sound == Config.Sound.NONE) == name.equals("No sound"), name + " in both modes");
         }
         s.put("sound", "Brahms & Mozart lullabies");
-        s.put("sleepSound", "Brown noise");
+        s.put("nightSound", "Brown noise");
         Config split = new Config(s);
-        check(split.sound == Config.Sound.CLASSIC && split.sleepSound == Config.Sound.BROWN, "each mode keeps its own sound");
-        check(split.sound.music() && !split.sound.noise() && split.sleepSound.noise(), "sound kinds");
+        check(split.sound == Config.Sound.CLASSIC && split.nightSound == Config.Sound.BROWN, "each mode keeps its own sound");
+        check(split.sound.music() && !split.sound.noise() && split.nightSound.noise(), "sound kinds");
         Scene.mix(split, Session.NIGHT, m);
         check(m.soother == 0 && Math.abs(m.night - nightLevel) < 1e-9, "the night light's sound through the night");
         Scene.mix(split, 30_000, 0, m);
@@ -144,8 +145,7 @@ public final class NightLightTest {
         s.put("volume", 0);
         Scene.mix(new Config(s), Session.NIGHT, m);
         check(Math.abs(m.night - Scene.loudness(0.6)) < 1e-9, "the soother volume leaves the night light alone");
-        s.put("sleepSound", "Silence");
-        check(new Config(s).sleepSound == Config.Sound.NONE, "the old silence setting still reads");
+        s.put("nightSound", "No sound");
         s.put("sound", "No sound");
         Scene.mix(new Config(s), 30_000, m);
         check(m.soother == 0 && m.night == 0, "no sound means no sound");

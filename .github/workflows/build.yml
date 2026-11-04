@@ -1,26 +1,52 @@
 name: Release
 on:
+  # Every push to main that changes the plugin releases a version named after the date.
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+  # A release published by hand builds and attaches the plugin to it.
   release:
     types: [published]
   workflow_dispatch:
 permissions:
   contents: write
+# One release at a time, so two quick pushes never pick the same version.
+concurrency:
+  group: release
+  cancel-in-progress: false
 jobs:
   build:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Validate release
+        with:
+          fetch-depth: 0
+      - name: Choose the version
+        id: version
         env:
           GH_TOKEN: ${{ github.token }}
+          # The time zone for the date in the version.
+          RELEASE_TZ: UTC
         run: |
-          python3 - <<'PY'
-          import os
-
-          if os.environ['GITHUB_REF_TYPE'] != 'tag':
-              raise SystemExit('Run this workflow on a release tag, not a branch.')
-          PY
-          gh release view "$GITHUB_REF_NAME"
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            # The date as year.monthday, then that day's release count: v2026.1104.1, v2026.1104.2.
+            # The month has no leading zero, so the versions stay plain numbers and sort by date.
+            today=$(TZ="$RELEASE_TZ" date +%Y.%-m%d)
+            n=1
+            while git rev-parse -q --verify "refs/tags/v$today.$n" > /dev/null; do n=$((n + 1)); done
+            tag="v$today.$n"
+            echo "Releasing $tag"
+          else
+            if [ "$GITHUB_REF_TYPE" != "tag" ]; then
+              echo "Run this workflow on a release tag, not a branch." >&2
+              exit 1
+            fi
+            tag="$GITHUB_REF_NAME"
+            gh release view "$tag"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -32,12 +58,25 @@ jobs:
       - name: Test
         run: python3 tools/test.py
       - name: Build
-        run: python3 tools/build.py --android-platform 35 --version "${GITHUB_REF_NAME#v}"
-      - name: Attach plugin assets to the release
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: python3 tools/build.py --android-platform 35 --version "${TAG#v}"
+      - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
         run: |
-          gh release upload "$GITHUB_REF_NAME" \
-            dist/*.zip \
-            dist/*.zip.sha256 \
-            dist/kiosk-satellite-plugin.json --clobber
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            gh release create "$TAG" \
+              --target "$GITHUB_SHA" \
+              --title "$TAG" \
+              --generate-notes \
+              dist/*.zip \
+              dist/*.zip.sha256 \
+              dist/kiosk-satellite-plugin.json
+          else
+            gh release upload "$TAG" \
+              dist/*.zip \
+              dist/*.zip.sha256 \
+              dist/kiosk-satellite-plugin.json --clobber
+          fi

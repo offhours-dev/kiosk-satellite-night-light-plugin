@@ -167,7 +167,7 @@ final class Scene {
         double windDown = clamp(elapsed / (double) Math.max(1, c.colourMs));
         out.tempo = 1 - (1 - NIGHT_TEMPO) * windDown;
         out.soother = c.sound == Config.Sound.NONE ? 0 : (1 - p) * loudness(c.volume);
-        out.night = c.sleepSound == Config.Sound.NONE ? 0 : p * loudness(c.nightVolume);
+        out.night = c.nightSound == Config.Sound.NONE ? 0 : p * loudness(c.nightVolume);
         return out;
     }
 

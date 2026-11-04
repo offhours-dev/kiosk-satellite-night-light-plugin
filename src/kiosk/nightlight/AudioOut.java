@@ -115,7 +115,7 @@ final class AudioOut implements Runnable {
             double sootherLevel = stopping ? 0 : mix.soother;
             double nightLevel = stopping ? 0 : mix.night;
             play(soother, c.sound, sootherLevel, mix.tempo);
-            play(night, c.sleepSound, nightLevel, Scene.NIGHT_TEMPO);
+            play(night, c.nightSound, nightLevel, Scene.NIGHT_TEMPO);
             boolean sootherOn = audible(soother, sootherLevel);
             boolean nightOn = audible(night, nightLevel);
 

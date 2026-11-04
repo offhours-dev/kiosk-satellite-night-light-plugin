@@ -127,7 +127,7 @@
       "description": "How bright the night light glows."
     },
     {
-      "key": "sleepSound",
+      "key": "nightSound",
       "type": "select",
       "title": "Night light sound",
       "default": "No sound",
@@ -145,7 +145,7 @@
       "step": 5,
       "unit": "%",
       "group": "Night light",
-      "visibleWhen": { "key": "sleepSound", "notEquals": "No sound" },
+      "visibleWhen": { "key": "nightSound", "notEquals": "No sound" },
       "description": "How loud the night light sound plays, separate from the soother, on top of the device's media volume."
     },
     {
