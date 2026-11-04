@@ -31,6 +31,9 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
     /** The tap that runs a corner gesture also dismisses the screensaver, so look again after it has gone. */
     static final long TAP_SETTLE_MS = 800;
     static final String LIGHT_EVENT = "device.light";
+    /** KS builds the view a moment before it counts it as on screen, so a tint asked for too soon is tried again. */
+    static final long TINT_RETRY_MS = 1000;
+    static final int TINT_TRIES = 10;
 
     private volatile PluginHost host;
     private volatile Config config = new Config(Collections.emptyMap());
@@ -47,6 +50,7 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
     private volatile boolean dark;
     /** The colour KS's widgets are tinted, or null while they keep their own. */
     private String tint;
+    private int tintTries;
 
     public NightLightPlugin() {
         this(System::currentTimeMillis);
@@ -122,7 +126,7 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
         try {
             if (want != null) {
                 h.executeCommand("setScreensaverTint", Collections.singletonMap("color", want), (ok, d, e) -> {
-                    if (!ok) h.log("Could not tint the widgets: " + e);
+                    if (!ok) tintFailed(h, want, e);
                 });
             } else {
                 h.executeCommand("clearScreensaverTint", Collections.emptyMap(), (ok, d, e) -> {});
@@ -130,6 +134,21 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
         } catch (RuntimeException | LinkageError olderHost) {
             // A KS without widget tints: the widgets keep their own colours.
             h.log("No widget tint: " + olderHost);
+        }
+    }
+
+    /** Forgets a tint KS refused, and tries again shortly while the screensaver is still up. */
+    private synchronized void tintFailed(PluginHost h, String colour, String error) {
+        if (!colour.equals(tint)) return;
+        tint = null;
+        if (++tintTries >= TINT_TRIES || views == 0 || timer == null) {
+            h.log("Could not tint the widgets: " + error);
+            return;
+        }
+        try {
+            timer.schedule(this::updateTint, TINT_RETRY_MS, TimeUnit.MILLISECONDS);
+        } catch (RejectedExecutionException stopping) {
+            // The plugin is stopping.
         }
     }
 
@@ -226,6 +245,7 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
         h.status(session.showing(config.colourMs) ? "Soother playing." : "Night light on.", false);
         // KS drops the tint whenever the screensaver leaves the screen, so set it again each time it shows.
         tint = null;
+        tintTries = 0;
         updateTint();
     }
 
