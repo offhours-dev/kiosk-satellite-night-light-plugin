@@ -94,6 +94,30 @@ public final class NightLightTest {
         Scene.blobs(lc, lc.colourMs + lc.fadeMs, blobs);
         check(blobs[0].colour == 0 && Math.abs(blobs[0].x - 0.5) < 1e-9, "blobs gather and fade into the sleep light");
 
+        // Night light styles: glow by default; flat is even; liquid dims the glow and adds slow blobs.
+        check(c.nightStyle == Config.Style.GLOW, "glow night light by default");
+        Scene.Frame glowNight = Scene.frame(c, Session.NIGHT, 1, 0, null);
+        check(glowNight.centre != glowNight.edge, "the glow is brighter in the middle");
+        Map<String, Object> ns = new HashMap<>();
+        ns.put("nightStyle", "Flat");
+        Config flat = new Config(ns);
+        Scene.Frame flatNight = Scene.frame(flat, Session.NIGHT, 1, 0, null);
+        check(flatNight.centre == flatNight.edge && flatNight.centre == glowNight.centre, "flat is one even colour");
+        ns.put("nightWaves", true);
+        Scene.Frame flatWaves = Scene.frame(new Config(ns), Session.NIGHT, 1, 0, null);
+        check(flatWaves.centre == flatWaves.edge, "flat stays even with colour waves");
+        ns.remove("nightWaves");
+        ns.put("nightStyle", "Liquid");
+        Config liquidNight = new Config(ns);
+        check(Scene.frame(liquidNight, Session.NIGHT, 1, 0, null).centre != glowNight.centre, "liquid dims the glow under its blobs");
+        Scene.Blob[] nb = Scene.nightBlobs(liquidNight, Session.NIGHT, 1, 0, null);
+        check(nb[0].colour != 0 && nb[0].colour != nb[1].colour, "the night light's blobs show, in shades");
+        double nx = nb[0].x;
+        check(Math.abs(Scene.nightBlobs(liquidNight, Session.NIGHT, 1, 250, null)[0].x - nx) < 0.005, "and drift very slowly");
+        check(Scene.nightBlobs(liquidNight, 60_000, 0, 0, null)[0].colour == 0, "they give way to the soother");
+        check(Scene.nightBlobs(c, Session.NIGHT, 1, 0, null)[0].colour == 0, "no night blobs unless liquid");
+        check(Scene.frame(liquidNight, 60_000, 0, 0, null).centre == Scene.frame(c, 60_000, 0, 0, null).centre, "the night light style leaves the soother alone");
+
         // Colour waves at night: off by default, and only the night light changes.
         Map<String, Object> ws = new HashMap<>();
         ws.put("nightWaves", true);
@@ -120,8 +144,8 @@ public final class NightLightTest {
 
         // Both modes choose from the same sounds, separately.
         Map<String, Object> s = new HashMap<>();
-        String[] names = {"Music box lullaby", "Brahms & Mozart lullabies", "Dreamy pads", "Ocean waves",
-            "White noise", "Pink noise", "Brown noise", "No sound"};
+        String[] names = {"Music box lullaby", "Brahms & Mozart lullabies", "Dreamy pads", "Ocean waves", "Rain",
+            "Thunderstorm", "White noise", "Pink noise", "Brown noise", "No sound"};
         for (String name : names) {
             s.put("sound", name);
             s.put("nightSound", name);
@@ -262,6 +286,22 @@ public final class NightLightTest {
             Stats ns = render(hush, rate * 10);
             check(ns.rms > 2000 && ns.rms < 12000 && ns.peak < 32767, colour + " noise is steady and not clipped: rms " + ns.rms);
         }
+
+        // A storm: rain all the way through, and thunder rolling in at least once in three minutes.
+        LullabySynth storm = new LullabySynth(rate, 11);
+        storm.setNoise(LullabySynth.Noise.STORM);
+        storm.setLevels(1, 0, 0, 1, 1);
+        storm.settle();
+        double quietest = Double.MAX_VALUE;
+        double loudest = 0;
+        for (int second = 0; second < 180; second++) {
+            Stats window = render(storm, rate);
+            check(window.peak < 32767, "thunder is not clipped");
+            quietest = Math.min(quietest, window.rms);
+            loudest = Math.max(loudest, window.rms);
+        }
+        check(quietest > 2000, "rain never stops: " + quietest);
+        check(loudest > quietest * 1.3, "thunder rolls in: " + loudest + " over " + quietest);
 
         LullabySynth waves = new LullabySynth(rate, 7);
         waves.setLevels(1, 0, 1, 1);

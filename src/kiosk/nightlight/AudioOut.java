@@ -91,6 +91,8 @@ final class AudioOut implements Runnable {
         if (sound == Config.Sound.WHITE) synth.setNoise(LullabySynth.Noise.WHITE);
         else if (sound == Config.Sound.PINK) synth.setNoise(LullabySynth.Noise.PINK);
         else if (sound == Config.Sound.BROWN) synth.setNoise(LullabySynth.Noise.BROWN);
+        else if (sound == Config.Sound.RAIN) synth.setNoise(LullabySynth.Noise.RAIN);
+        else if (sound == Config.Sound.STORM) synth.setNoise(LullabySynth.Noise.STORM);
         synth.setLevels(level, sound.music() ? 1 : 0, sound == Config.Sound.WAVES ? 1 : 0, sound.noise() ? 1 : 0, tempo);
     }
 

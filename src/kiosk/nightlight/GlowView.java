@@ -46,6 +46,7 @@ final class GlowView extends View {
     private final Paint starPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path star = new Path();
     private Scene.Blob[] blobs;
+    private Scene.Blob[] nightBlobs;
     private Bitmap liquid;
     private Canvas liquidCanvas;
     private final Paint blobPaint = new Paint();
@@ -74,7 +75,8 @@ final class GlowView extends View {
         Config c = source.config();
         long elapsed = source.elapsed();
         double fade = source.fade();
-        Scene.frame(c, elapsed, fade, System.currentTimeMillis(), frame);
+        long clock = System.currentTimeMillis();
+        Scene.frame(c, elapsed, fade, clock, frame);
         colours[0] = 0xFF000000 | frame.centre;
         colours[1] = 0xFF000000 | Scene.mix(frame.centre, frame.edge, 0.55);
         colours[2] = 0xFF000000 | frame.edge;
@@ -82,14 +84,23 @@ final class GlowView extends View {
         paint.setShader(new RadialGradient((float) (frame.cx * w), (float) (frame.cy * h), radius, colours, stops,
             Shader.TileMode.CLAMP));
         canvas.drawRect(0, 0, w, h, paint);
-        if (c.liquid && frame.phase != Scene.Phase.SLEEP) drawLiquid(canvas, w, h, c, elapsed, fade);
+        boolean sootherBlobs = c.liquid && frame.phase != Scene.Phase.SLEEP;
+        boolean nightLiquid = c.nightStyle == Config.Style.LIQUID;
+        if (sootherBlobs || nightLiquid) {
+            Scene.Blob[] soother = null;
+            if (sootherBlobs) soother = blobs = Scene.blobs(c, elapsed, fade, blobs);
+            Scene.Blob[] night = null;
+            if (nightLiquid) night = nightBlobs = Scene.nightBlobs(c, elapsed, fade, clock, nightBlobs);
+            drawLiquid(canvas, w, h, soother, night);
+        }
         if (frame.phase != Scene.Phase.COLOURS) drawStars(canvas, w, h, c, fade);
-        long next = frame.phase != Scene.Phase.SLEEP ? COLOUR_FRAME_MS : c.nightWaves ? WAVES_FRAME_MS : SLEEP_FRAME_MS;
+        boolean moving = c.nightWaves || nightLiquid;
+        long next = frame.phase != Scene.Phase.SLEEP ? COLOUR_FRAME_MS : moving ? WAVES_FRAME_MS : SLEEP_FRAME_MS;
         if (shown) postInvalidateDelayed(next);
     }
 
-    /** The liquid style's soft blobs, added over the dimmed glow while the soother plays. */
-    private void drawLiquid(Canvas canvas, int w, int h, Config c, long elapsed, double fade) {
+    /** The liquid style's soft blobs, the soother's and the night light's, added over the dimmed glow. */
+    private void drawLiquid(Canvas canvas, int w, int h, Scene.Blob[] soother, Scene.Blob[] night) {
         int sw = Math.max(1, w / LIQUID_SCALE);
         int sh = Math.max(1, h / LIQUID_SCALE);
         if (liquid == null || liquid.getWidth() != sw || liquid.getHeight() != sh) {
@@ -97,7 +108,13 @@ final class GlowView extends View {
             liquidCanvas = new Canvas(liquid);
         }
         liquid.eraseColor(0);
-        blobs = Scene.blobs(c, elapsed, fade, blobs);
+        if (soother != null) drawBlobs(soother, sw, sh);
+        if (night != null) drawBlobs(night, sw, sh);
+        screen.set(0, 0, w, h);
+        canvas.drawBitmap(liquid, null, screen, liquidPaint);
+    }
+
+    private void drawBlobs(Scene.Blob[] blobs, int sw, int sh) {
         float size = Math.max(sw, sh);
         for (Scene.Blob b : blobs) {
             if (b.colour == 0) continue;
@@ -110,8 +127,6 @@ final class GlowView extends View {
             blobPaint.setShader(new RadialGradient(x, y, r, blobColours, blobStops, Shader.TileMode.CLAMP));
             liquidCanvas.drawCircle(x, y, r, blobPaint);
         }
-        screen.set(0, 0, w, h);
-        canvas.drawBitmap(liquid, null, screen, liquidPaint);
     }
 
     /**

@@ -11,8 +11,8 @@ What it offers:
 
 - **Sound made on the device.** A music box lullaby, dreamy pads or ocean waves, composed as it plays so it never repeats exactly. Or Brahms' Lullaby and Mozart's Twinkle, Twinkle on the music box. It slows down a little as the soother goes on. There are no audio files and nothing to download.
 - **Soft colours.** The soother is a slow glow drifting through Rainbow, Ocean, Sunset, Aurora or Candy colours. Or pick the **Liquid** style: a few soft blobs of colour that slowly drift and blend into each other, then gather into the night light at the end. It dims gradually, so the night light is not a jump.
-- **A warm night light.** Amber by default, with adjustable colour and brightness. Or turn on **Colour waves** and it drifts very slowly through the soother's colours instead, just as dim.
-- **Sounds for each mode.** The soother and the night light choose from the same sounds: a music box lullaby, Brahms & Mozart lullabies, dreamy pads, ocean waves, white, pink or brown noise, or no sound. Each has its own choice and volume, so the soother can play a lullaby and the night light brown noise all night. White noise is a steady hiss, pink noise is softer and brown noise is a deep rumble.
+- **A warm night light.** Amber by default, with adjustable colour and brightness. Choose its style: **Flat**, one even colour; **Glow**, brighter in the middle; or **Liquid**, a few soft blobs that drift and blend very slowly. Turn on **Colour waves** and it drifts very slowly through the soother's colours instead, just as dim.
+- **Sounds for each mode.** The soother and the night light choose from the same sounds: a music box lullaby, Brahms & Mozart lullabies, dreamy pads, ocean waves, rain, a thunderstorm, white, pink or brown noise, or no sound. Each has its own choice and volume, so the soother can play a lullaby and the night light brown noise all night. The thunderstorm is rain with distant thunder rolling in every minute or two, never a sudden crack. White noise is a steady hiss, pink noise is softer and brown noise is a deep rumble.
 - **Bedtime countdown.** Optionally shows a row of stars on the night light, about one per hour between bed time and up time (at most 10). They go out one by one through the night, so a child can see how long until it is time to get up.
 - **Wakes gently.** If the screen is tapped mid-soother and the screensaver comes back within an hour, the soother carries on where it was.
 
@@ -64,6 +64,7 @@ Kiosk Satellite's own corner widgets and At a Glance row only follow the Clock s
 | Soother | Colour speed | Slow |
 | Soother | Colour brightness | 70% |
 | Soother | Fade to night light | 3 min |
+| Night light | Night light style | Glow |
 | Night light | Colour waves | Off |
 | Night light | Night light colour | #FF9440 (warm amber) |
 | Night light | Night light brightness | 25% |

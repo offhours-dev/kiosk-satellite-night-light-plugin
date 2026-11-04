@@ -6,7 +6,8 @@ import java.util.Random;
 /**
  * A small generative lullaby: a music box (or soft bell) melody in 3/4 over warm pads and a soft bass, plus an
  * ocean-waves layer. Every phrase is new but follows a repeating motif, so it sounds composed rather than random.
- * It can also play classic lullabies on the music box instead, and a white, pink or brown noise layer. Everything is synthesised here, so there are no audio
+ * It can also play classic lullabies on the music box instead, and a white, pink or brown noise, rain or
+ * thunderstorm layer. Everything is synthesised here, so there are no audio
  * files and nothing to license: the melodies are long in the public domain.
  *
  * Pure Java with no Android classes, so tests can render it on the desktop. Not thread-safe: call it from the audio
@@ -86,8 +87,13 @@ final class LullabySynth {
     /** Quiet eighths between one song and the next. */
     private static final int SONG_GAP = 12;
 
-    /** Noise colours: white is hiss, pink is softer, brown is a low rumble like a distant waterfall. */
-    enum Noise { WHITE, PINK, BROWN }
+    /**
+     * Noise colours: white is hiss, pink is softer, brown is a low rumble like a distant waterfall. Rain is a soft
+     * hiss with random drops; a storm adds distant thunder now and then.
+     */
+    enum Noise { WHITE, PINK, BROWN, RAIN, STORM }
+
+    private static final double DROPS_PER_SECOND = 120;
 
     private final int rate;
     private final Random rnd;
@@ -133,11 +139,20 @@ final class LullabySynth {
     // Noise.
     private double pink0, pink1, pink2, brownNoise;
 
+    // Rain and thunder.
+    private final double dropDecay;
+    private final double thunderK;
+    private double rainLow, rainDrops, dropEnv, gustPhase;
+    private double thunderA, thunderB, rollPhase, rollHz, thunderRise, thunderLoud;
+    private long noiseClock, thunderAt = -1, thunderStart = -1, thunderLength;
+
     LullabySynth(int sampleRate, long seed) {
         rate = sampleRate;
         rnd = new Random(seed);
         smoothK = 1 - Math.exp(-1.0 / (0.3 * rate));
         delay = new float[(int) (0.42 * rate)];
+        dropDecay = Math.exp(-1 / (0.006 * rate));
+        thunderK = 1 - Math.exp(-2 * Math.PI * 300 / rate);
         for (int i = 0; i < bells.length; i++) bells[i] = new Bell();
         for (int i = 0; i < pads.length; i++) pads[i] = new Pad();
         newMotif();
@@ -450,10 +465,63 @@ final class LullabySynth {
                 pink1 = 0.96300 * pink1 + white * 0.2965164;
                 pink2 = 0.57000 * pink2 + white * 1.0526913;
                 return (pink0 + pink1 + pink2 + white * 0.1848) * 0.1;
+            case RAIN:
+                return rain(white);
+            case STORM:
+                return rain(white) + thunder();
             default:
                 brownNoise = (brownNoise + 0.02 * white) / 1.02;
                 return brownNoise * 3.0;
         }
+    }
+
+    /** Steady fine rain that swells a little, like gusts, with random drops landing on top. */
+    private double rain(double white) {
+        gustPhase += 1.0 / (7.3 * rate);
+        if (gustPhase >= 1) gustPhase -= 1;
+        rainLow += (white - rainLow) * 0.35;
+        double bed = rainLow * (0.8 + 0.2 * sin(gustPhase));
+        if (rnd.nextDouble() < DROPS_PER_SECOND / rate) {
+            // Mostly small drops, the odd big one.
+            double size = rnd.nextDouble();
+            dropEnv = Math.max(dropEnv, size * size);
+        }
+        double drop = (rnd.nextDouble() * 2 - 1) * dropEnv;
+        dropEnv *= dropDecay;
+        rainDrops += (drop - rainDrops) * 0.5;
+        return bed * 0.6 + rainDrops * 1.2;
+    }
+
+    /**
+     * Distant thunder: a low rumble every minute or two that swells in over about a second, rolls, and dies away.
+     * Never a sudden crack, so it does not wake anyone.
+     */
+    private double thunder() {
+        noiseClock++;
+        if (thunderAt < 0) thunderAt = noiseClock + (long) ((20 + 40 * rnd.nextDouble()) * rate);
+        if (thunderStart < 0) {
+            if (noiseClock < thunderAt) return 0;
+            thunderStart = noiseClock;
+            thunderLength = (long) ((6 + 6 * rnd.nextDouble()) * rate);
+            thunderRise = 0.5 + 1.0 * rnd.nextDouble();
+            thunderLoud = 0.5 + 0.5 * rnd.nextDouble();
+            rollHz = 0.3 + 0.5 * rnd.nextDouble();
+        }
+        double t = (noiseClock - thunderStart) / (double) rate;
+        double length = thunderLength / (double) rate;
+        if (t >= length) {
+            thunderStart = -1;
+            thunderAt = noiseClock + (long) ((45 + 105 * rnd.nextDouble()) * rate);
+            return 0;
+        }
+        rollPhase += rollHz / rate;
+        if (rollPhase >= 1) rollPhase -= 1;
+        double env = Math.min(1, t / thunderRise) * Math.exp(-2 * t / length) * Math.min(1, length - t)
+            * (0.55 + 0.45 * (0.5 + 0.5 * sin(rollPhase)));
+        double white = rnd.nextDouble() * 2 - 1;
+        thunderA += (white - thunderA) * thunderK;
+        thunderB += (thunderA - thunderB) * thunderK;
+        return thunderB * 8.0 * thunderLoud * env;
     }
 
     private static double midiHz(int midi) {

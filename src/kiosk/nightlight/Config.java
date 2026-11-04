@@ -6,16 +6,19 @@ import java.util.Map;
 
 /** An immutable snapshot of the plugin settings. Read from any thread. */
 final class Config {
+    /** How the night light looks: one even colour, a soft glow, or slowly drifting blobs. */
+    enum Style { FLAT, GLOW, LIQUID }
+
     /** The sounds the soother and the night light each choose from. */
     enum Sound {
-        MUSIC_BOX, CLASSIC, DREAMY, WAVES, WHITE, PINK, BROWN, NONE;
+        MUSIC_BOX, CLASSIC, DREAMY, WAVES, WHITE, PINK, BROWN, RAIN, STORM, NONE;
 
         boolean music() {
             return this == MUSIC_BOX || this == CLASSIC || this == DREAMY;
         }
 
         boolean noise() {
-            return this == WHITE || this == PINK || this == BROWN;
+            return this == WHITE || this == PINK || this == BROWN || this == RAIN || this == STORM;
         }
     }
 
@@ -27,6 +30,7 @@ final class Config {
     /** Liquid colour style: soft colour blobs that drift and blend during the soother, instead of one glow. */
     final boolean liquid;
     final int warmColor;
+    final Style nightStyle;
     /** The night light drifts very slowly through the palette instead of one steady colour. */
     final boolean nightWaves;
     final double warmBrightness;
@@ -63,6 +67,11 @@ final class Config {
         colourBrightness = number(s, "colourBrightness", 70, 10, 100) / 100.0;
         liquid = "Liquid".equals(string(s, "colourStyle", "Glow"));
         warmColor = color(s, "warmColor", 0xFF9440);
+        switch (string(s, "nightStyle", "Glow")) {
+            case "Flat": nightStyle = Style.FLAT; break;
+            case "Liquid": nightStyle = Style.LIQUID; break;
+            default: nightStyle = Style.GLOW;
+        }
         nightWaves = bool(s, "nightWaves", false);
         warmBrightness = number(s, "warmBrightness", 25, 1, 100) / 100.0;
         sound = sound(string(s, "sound", "Music box lullaby"), Sound.MUSIC_BOX);
@@ -88,6 +97,8 @@ final class Config {
             case "White noise": return Sound.WHITE;
             case "Pink noise": return Sound.PINK;
             case "Brown noise": return Sound.BROWN;
+            case "Rain": return Sound.RAIN;
+            case "Thunderstorm": return Sound.STORM;
             case "No sound": return Sound.NONE;
             default: return fallback;
         }

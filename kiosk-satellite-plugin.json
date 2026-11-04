@@ -30,9 +30,9 @@
       "type": "select",
       "title": "Soother sound",
       "default": "Music box lullaby",
-      "options": ["Music box lullaby", "Brahms & Mozart lullabies", "Dreamy pads", "Ocean waves", "White noise", "Pink noise", "Brown noise", "No sound"],
+      "options": ["Music box lullaby", "Brahms & Mozart lullabies", "Dreamy pads", "Ocean waves", "Rain", "Thunderstorm", "White noise", "Pink noise", "Brown noise", "No sound"],
       "group": "Soother",
-      "description": "What the soother plays. The music box lullaby is made up as it plays, so it never repeats exactly. Brahms & Mozart plays Brahms' Lullaby and Twinkle, Twinkle on the music box. White noise is a steady hiss, pink noise is softer and brown noise is a deep rumble."
+      "description": "What the soother plays. The music box lullaby is made up as it plays, so it never repeats exactly. Brahms & Mozart plays Brahms' Lullaby and Twinkle, Twinkle on the music box. Thunderstorm is rain with distant thunder now and then. White noise is a steady hiss, pink noise is softer and brown noise is a deep rumble."
     },
     {
       "key": "volume",
@@ -62,7 +62,7 @@
       "default": "Glow",
       "options": ["Glow", "Liquid"],
       "group": "Soother",
-      "description": "How the soother looks. Glow is one soft glow that drifts through the colours. Liquid is a few soft blobs of colour that slowly drift and blend into each other. The night light is not affected."
+      "description": "How the soother looks. Glow is one soft glow that drifts through the colours. Liquid is a few soft blobs of colour that slowly drift and blend into each other. The night light has its own style."
     },
     {
       "key": "colourSpeed",
@@ -98,6 +98,15 @@
       "description": "How long the soother takes to fade into the night light when it finishes by itself. End fades it in about 20 seconds."
     },
     {
+      "key": "nightStyle",
+      "type": "select",
+      "title": "Night light style",
+      "default": "Glow",
+      "options": ["Flat", "Glow", "Liquid"],
+      "group": "Night light",
+      "description": "How the night light looks. Flat is one even colour across the screen. Glow is a soft glow, brighter in the middle. Liquid is a few soft blobs of colour that drift very slowly and blend, like the soother's liquid style but much slower."
+    },
+    {
       "key": "nightWaves",
       "type": "boolean",
       "title": "Colour waves",
@@ -131,7 +140,7 @@
       "type": "select",
       "title": "Night light sound",
       "default": "No sound",
-      "options": ["Music box lullaby", "Brahms & Mozart lullabies", "Dreamy pads", "Ocean waves", "White noise", "Pink noise", "Brown noise", "No sound"],
+      "options": ["Music box lullaby", "Brahms & Mozart lullabies", "Dreamy pads", "Ocean waves", "Rain", "Thunderstorm", "White noise", "Pink noise", "Brown noise", "No sound"],
       "group": "Night light",
       "description": "What plays with the night light all night, including when the screensaver first starts. The same choices as the soother, picked separately. The soother fades into it."
     },

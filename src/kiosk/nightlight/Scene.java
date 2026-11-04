@@ -82,15 +82,19 @@ final class Scene {
         if (out == null) out = new Frame();
         elapsed = Math.max(0, elapsed);
         out.phase = phase(fade);
+        // The night light: flat is one even colour, glow is brighter in the middle, and liquid dims the glow so its
+        // blobs carry the colour.
+        double bright = c.warmBrightness * (c.nightStyle == Config.Style.LIQUID ? LIQUID_BASE : 1);
+        double edgeBright = c.nightStyle == Config.Style.FLAT ? bright : bright * 0.72;
         int warm;
         int warmEdge;
         if (c.nightWaves) {
-            double night = clockMs / 1000.0 / (c.secondsPerColour * NIGHT_SLOWER);
-            warm = scale(colourAt(c.palette, night), c.warmBrightness);
-            warmEdge = scale(colourAt(c.palette, night + 0.6), c.warmBrightness * 0.72);
+            double night = nightPosition(c, clockMs);
+            warm = scale(colourAt(c.palette, night), bright);
+            warmEdge = scale(colourAt(c.palette, c.nightStyle == Config.Style.FLAT ? night : night + 0.6), edgeBright);
         } else {
-            warm = scale(c.warmColor, c.warmBrightness);
-            warmEdge = scale(c.warmColor, c.warmBrightness * 0.72);
+            warm = scale(c.warmColor, bright);
+            warmEdge = scale(c.warmColor, edgeBright);
         }
         double p = toSleep(elapsed, fade);
         if (out.phase == Phase.SLEEP) {
@@ -103,11 +107,11 @@ final class Scene {
         double t = elapsed / 1000.0;
         // The soother winds down: a little dimmer by the end, so the night light is not a jump.
         double windDown = clamp(elapsed / (double) Math.max(1, c.colourMs));
-        double bright = c.colourBrightness * (1 - 0.35 * windDown);
+        double show = c.colourBrightness * (1 - 0.35 * windDown);
         double pos = t / c.secondsPerColour;
-        if (c.liquid) bright *= LIQUID_BASE;
-        int centre = scale(colourAt(c.palette, pos), bright);
-        int edge = scale(colourAt(c.palette, pos + 0.6), bright * 0.38);
+        if (c.liquid) show *= LIQUID_BASE;
+        int centre = scale(colourAt(c.palette, pos), show);
+        int edge = scale(colourAt(c.palette, pos + 0.6), show * 0.38);
         double cx = 0.5 + 0.18 * Math.sin(2 * Math.PI * t / 97.0);
         double cy = 0.5 + 0.14 * Math.sin(2 * Math.PI * t / 131.0 + 1.0);
         out.centre = mix(centre, warm, p);
@@ -141,13 +145,46 @@ final class Scene {
         double lap = c.secondsPerColour * 5;
         for (int i = 0; i < out.length; i++) {
             Blob b = out[i];
-            double x = 0.5 + 0.32 * Math.sin(2 * Math.PI * t / (lap * (1 + 0.23 * i)) + i * 1.7);
-            double y = 0.5 + 0.28 * Math.sin(2 * Math.PI * t / (lap * (1.31 + 0.17 * i)) + i * 2.3);
-            b.x = x + (0.5 - x) * p;
-            b.y = y + (0.5 - y) * p;
-            b.r = 0.42 + 0.08 * Math.sin(2 * Math.PI * t / (lap * 0.9 + i * 7) + i);
+            place(b, i, t, lap);
+            b.x += (0.5 - b.x) * p;
+            b.y += (0.5 - b.y) * p;
             double hue = t / c.secondsPerColour + i * c.palette.length / (double) out.length;
             b.colour = scale(colourAt(c.palette, hue), bright);
+        }
+        return out;
+    }
+
+    /** Where blob i is on its slow path at t seconds, with one lap taking about lap seconds. */
+    private static void place(Blob b, int i, double t, double lap) {
+        b.x = 0.5 + 0.32 * Math.sin(2 * Math.PI * t / (lap * (1 + 0.23 * i)) + i * 1.7);
+        b.y = 0.5 + 0.28 * Math.sin(2 * Math.PI * t / (lap * (1.31 + 0.17 * i)) + i * 2.3);
+        b.r = 0.42 + 0.08 * Math.sin(2 * Math.PI * t / (lap * 0.9 + i * 7) + i);
+    }
+
+    /** How far the night light's colour waves have drifted through the palette by the wall clock. */
+    static double nightPosition(Config c, long clockMs) {
+        return clockMs / 1000.0 / (c.secondsPerColour * NIGHT_SLOWER);
+    }
+
+    /**
+     * The night light's liquid blobs: the same soft blobs as the soother's, drifting NIGHT_SLOWER times slower by the
+     * wall clock. In the night light's colour, a little lighter or darker each, or with colour waves, each a different
+     * colour from the palette. They grow in as the soother fades to the night light. None unless the style is liquid.
+     */
+    static Blob[] nightBlobs(Config c, long elapsed, double fade, long clockMs, Blob[] out) {
+        if (out == null) {
+            out = new Blob[BLOBS];
+            for (int i = 0; i < BLOBS; i++) out[i] = new Blob();
+        }
+        double p = c.nightStyle == Config.Style.LIQUID ? toSleep(Math.max(0, elapsed), fade) : 0;
+        double t = clockMs / 1000.0;
+        double lap = c.secondsPerColour * 5 * NIGHT_SLOWER;
+        double night = nightPosition(c, clockMs);
+        for (int i = 0; i < out.length; i++) {
+            Blob b = out[i];
+            place(b, i, t, lap);
+            int colour = c.nightWaves ? colourAt(c.palette, night + i * c.palette.length / (double) out.length) : c.warmColor;
+            b.colour = scale(colour, c.warmBrightness * 0.5 * (0.75 + 0.25 * (i % 2)) * p);
         }
         return out;
     }
