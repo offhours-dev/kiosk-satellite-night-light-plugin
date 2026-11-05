@@ -85,6 +85,22 @@ Tinting the widgets needs a Kiosk Satellite release with screensaver tints. On o
 
 Settings save automatically and apply straight away, even while the night light is showing.
 
+## Installation
+
+### Community Plugins (Recommended)
+
+Night Light is listed in [Community Plugins](https://kiosksatellite.com/plugins/). Use the button below to open it in your Kiosk Satellite and install it.
+
+[![Install in Kiosk Satellite](https://kiosksatellite.com/img/badges/plugin-add.svg)](https://kiosksatellite.com/redirect/plugin/?repository=ostat/kiosk-satellite-night-light-plugin)
+
+Or search for `Night Light` in **Settings > Plugin Manager > Browse plugins** in Kiosk Satellite.
+
+### Manual
+
+1. Open **Settings > Plugin Manager** in Kiosk Satellite and turn on **Enable Plugins**.
+2. Choose **Add plugin**, paste `https://github.com/ostat/kiosk-satellite-night-light-plugin` and choose **Preview**.
+3. Review the plugin and choose **Trust and install**.
+
 ## Permissions
 
 The plugin declares `screensaver` to draw the night light, plus `screensaver.mode` and `host.control` so the actions can switch to it and start or dismiss it, and `host.read` to read the room's light level for **Night mode**. It reads nothing else from the kiosk and makes no network requests.
