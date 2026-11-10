@@ -19,6 +19,7 @@ public final class NightLightTest {
         synth();
         plugin();
         audioOnly();
+        soundEntity();
         System.out.println("NightLightTest passed");
     }
 
@@ -508,6 +509,72 @@ public final class NightLightTest {
         check(made.get(1).stopped, "stopping the plugin stops the sound");
     }
 
+    static Object lastSaved(FakeHost host, String key) {
+        for (int i = host.updates.size() - 1; i >= 0; i--) if (host.updates.get(i).containsKey(key)) return host.updates.get(i).get(key);
+        return null;
+    }
+
+    static void soundEntity() {
+        Config d = new Config(Collections.emptyMap());
+        check(!d.resumeSound && !d.soundOn, "resume and sound on are off by default");
+
+        FakeHost host = new FakeHost();
+        List<FakeSound> made = new ArrayList<>();
+        NightLightPlugin plugin = soundPlugin(host, made, Collections.emptyMap());
+        check(Boolean.FALSE.equals(host.switches.get("sound")), "publishes the sound switch, off: " + host.switches);
+        plugin.onEvent("switch.sound", Collections.singletonMap("on", true));
+        check(plugin.audioRunning() && Boolean.TRUE.equals(host.switches.get("sound")), "the switch plays the sound and reports it");
+        check(Boolean.TRUE.equals(lastSaved(host, "soundOn")), "and remembers it for a restart");
+        plugin.onEvent("switch.sound", Collections.singletonMap("on", false));
+        check(!plugin.audioRunning() && Boolean.FALSE.equals(host.switches.get("sound")), "the switch stops it");
+        check(Boolean.FALSE.equals(lastSaved(host, "soundOn")), "and forgets it");
+        plugin.execute("startSound", Collections.emptyMap());
+        check(Boolean.TRUE.equals(host.switches.get("sound")), "the action updates the switch too");
+        plugin.execute("stopNightLight", Collections.emptyMap());
+        check(Boolean.FALSE.equals(host.switches.get("sound")), "and Close does too");
+        plugin.viewShown();
+        check(Boolean.TRUE.equals(host.switches.get("sound")), "the screensaver's sound shows on the switch");
+        plugin.viewGone();
+        settle(plugin);
+        check(Boolean.FALSE.equals(host.switches.get("sound")), "and ends with it");
+        check(!Boolean.TRUE.equals(lastSaved(host, "soundOn")), "the screensaver's own sound is not resumed");
+        plugin.stop();
+
+        Map<String, Object> resume = new HashMap<>();
+        resume.put("resumeSound", true);
+        resume.put("soundOn", true);
+        made.clear();
+        host = new FakeHost();
+        plugin = soundPlugin(host, made, resume);
+        check(plugin.audioRunning() && Boolean.TRUE.equals(host.switches.get("sound")), "a restart resumes the sound");
+        plugin.stop();
+
+        resume.put("resumeSound", false);
+        made.clear();
+        host = new FakeHost();
+        plugin = soundPlugin(host, made, resume);
+        check(!plugin.audioRunning(), "without resume, a restart stays quiet");
+        check(Boolean.FALSE.equals(lastSaved(host, "soundOn")), "and saves the sound as off");
+        Map<String, Object> off = new HashMap<>(resume);
+        off.put("soundOn", false);
+        plugin.configure(off);
+        check(!plugin.audioRunning(), "configure with an unchanged sound on does nothing");
+        Map<String, Object> on = new HashMap<>(resume);
+        plugin.configure(on);
+        check(plugin.audioRunning(), "turning sound on in settings plays it");
+        plugin.configure(off);
+        check(!plugin.audioRunning(), "and turning it off stops it");
+        plugin.stop();
+
+        made.clear();
+        host = new FakeHost();
+        host.noEntities = true;
+        plugin = soundPlugin(host, made, Collections.emptyMap());
+        plugin.execute("startSound", Collections.emptyMap());
+        check(plugin.audioRunning(), "an older KS without entities still plays the sound");
+        plugin.stop();
+    }
+
     static final class FakeHost implements PluginHost {
         final List<String> commands = new ArrayList<>();
         final Map<String, Map<String, Object>> lastArgs = new HashMap<>();
@@ -531,7 +598,15 @@ public final class NightLightTest {
             this.touch = touch;
         }
         @Override public void removeScreensaver(String key) {}
+        @Override public void publishSwitch(String key, String name, boolean state) {
+            if (noEntities) throw new UnsupportedOperationException("SDK 1 required");
+            switches.put(key, state);
+        }
+        @Override public void updateSettings(Map<String, Object> values) { updates.add(new HashMap<>(values)); }
         String status = "";
+        final Map<String, Boolean> switches = new HashMap<>();
+        final List<Map<String, Object>> updates = new ArrayList<>();
+        boolean noEntities;
         @Override public void status(String message, boolean error) { status = message; }
         @Override public void showWindow(String title, String message, String buttonLabel) {}
         @Override public void hideWindow() {}

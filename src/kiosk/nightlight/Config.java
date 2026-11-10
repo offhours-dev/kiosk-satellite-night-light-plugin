@@ -58,6 +58,10 @@ final class Config {
     final boolean nightHide;
     /** Keep the night light sound playing after the screensaver closes. */
     final boolean keepSound;
+    /** Play the sound again when the plugin starts, if it was on. */
+    final boolean resumeSound;
+    /** The sound plays on its own; saved by the plugin so a restart can resume it. */
+    final boolean soundOn;
 
     Config(Map<String, Object> s) {
         colourMs = (long) (number(s, "colourMinutes", 30, 1, 240) * 60_000L);
@@ -93,6 +97,8 @@ final class Config {
         nightColor = color(s, "nightColor", 0xA63A32);
         nightHide = bool(s, "nightHide", false);
         keepSound = bool(s, "keepSound", false);
+        resumeSound = bool(s, "resumeSound", false);
+        soundOn = bool(s, "soundOn", false);
     }
 
     static Sound sound(String name, Sound fallback) {

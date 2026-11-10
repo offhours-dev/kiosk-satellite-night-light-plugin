@@ -44,6 +44,8 @@ The button needs a Kiosk Satellite release that passes taps to plugin screensave
 
 Each action can also be exposed to Home Assistant from the plugin page. You can then start the soother from a bedtime automation.
 
+The plugin also adds a **Night light sound** switch to Home Assistant. It shows whether the sound is playing, from the screensaver or on its own, and turns the sound on or off. It needs a Kiosk Satellite release with plugin entities.
+
 ### Recommended Kiosk Satellite settings
 
 Kiosk Satellite still controls when the screensaver starts and stops, so check these screensaver settings:
@@ -79,6 +81,8 @@ Tinting the widgets needs a Kiosk Satellite release with screensaver tints. On o
 | Night light | Night light sound | No sound |
 | Night light | Night light volume | 25% |
 | Night light | Keep sound when closed | Off |
+| Night light | Sound on | Off |
+| Night light | Resume sound after restart | Off |
 | Countdown | Bedtime countdown | Off |
 | Countdown | Bed time | 19:00 |
 | Countdown | Up time | 07:00 |

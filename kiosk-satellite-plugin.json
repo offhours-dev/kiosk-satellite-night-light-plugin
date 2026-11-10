@@ -10,7 +10,7 @@
   "description": "A bedtime night light for a child's room. As a screensaver it shows a dim warm night light. Press Soother for gentle sleepy music or sounds while the screen drifts through soft colours, which then fades back to the night light.",
   "author": "heazlewood",
   "license": "Apache-2.0",
-  "capabilities": ["screensaver", "screensaver.mode", "host.control", "host.read"],
+  "capabilities": ["screensaver", "screensaver.mode", "host.control", "host.read", "entities"],
   "icon": "icon.png",
   "settings": [
     {
@@ -166,6 +166,24 @@
       "group": "Night light",
       "visibleWhen": { "key": "nightSound", "notEquals": "No sound" },
       "description": "Keeps the sound playing after the screensaver closes, for example when the screen is touched or turns off. Stop night light sound or Close Night Light ends it."
+    },
+    {
+      "key": "soundOn",
+      "type": "boolean",
+      "title": "Sound on",
+      "default": false,
+      "group": "Night light",
+      "visibleWhen": { "key": "nightSound", "notEquals": "No sound" },
+      "description": "On while the sound plays without the screensaver. Turn it on or off here to play or stop the sound."
+    },
+    {
+      "key": "resumeSound",
+      "type": "boolean",
+      "title": "Resume sound after restart",
+      "default": false,
+      "group": "Night light",
+      "visibleWhen": { "key": "nightSound", "notEquals": "No sound" },
+      "description": "If the sound was on when the device or Kiosk Satellite restarted, for example after a power cut, plays it again."
     },
     {
       "key": "countdown",

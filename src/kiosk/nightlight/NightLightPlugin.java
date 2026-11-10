@@ -28,6 +28,8 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
     static final String MODE = "plugin:" + ID + ":" + KEY;
     static final String READY = "Ready. Choose Night Light under Screensaver mode, or run the Start night light action.";
     static final String SOUND_ONLY = "Night sound playing.";
+    /** The Home Assistant switch for the sound. */
+    static final String SOUND_KEY = "sound";
     /** KS can rebuild the view (rotation, UI scale), so wait a moment before treating it as dismissed. */
     static final long END_GRACE_MS = 2500;
     /** The tap that runs a corner gesture also dismisses the screensaver, so look again after it has gone. */
@@ -45,6 +47,10 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
     private Sound audio;
     /** True while the sound plays on its own: started by Play sound, or kept by Keep sound when closed. */
     private boolean soundOnly;
+    /** The soundOn value last saved, so only a change the user makes in settings plays or stops the sound. */
+    private boolean savedSoundOn;
+    /** False on a KS without plugin entities. */
+    private boolean entities = true;
     private int views;
     /** True while this plugin, not the user's Screensaver mode, chose the night light. */
     private boolean overriding;
@@ -95,11 +101,20 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
         } catch (UnsupportedOperationException | LinkageError olderHost) {
             host.status("This Kiosk Satellite is too old for native screensavers. Update Kiosk Satellite.", true);
         }
+        savedSoundOn = config.soundOn;
+        if (config.resumeSound && config.soundOn) startSound(host);
+        else soundChanged();
     }
 
     @Override public void configure(Map<String, Object> settings) {
         config = new Config(settings);
         updateTint();
+        PluginHost h = host;
+        boolean changed;
+        synchronized (this) { changed = config.soundOn != savedSoundOn; }
+        if (h == null || !changed) return;
+        if (config.soundOn) startSound(h);
+        else stopSound(h);
     }
 
     /** Follows the room's light level for Night mode, the way the Clock screensaver does. */
@@ -227,6 +242,7 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
         soundOnly = true;
         ensureAudio();
         h.status(views > 0 ? "Night light on." : SOUND_ONLY, false);
+        soundChanged();
     }
 
     /** Stops the sound, whatever started it. A screensaver that shows again starts it again. */
@@ -234,6 +250,7 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
         soundOnly = false;
         stopAudio();
         h.status(views > 0 ? "Night light on, sound stopped." : READY, false);
+        soundChanged();
     }
 
     private void ensureAudio() {
@@ -252,6 +269,7 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
             overriding = false;
             soundOnly = false;
             stopAudio();
+            soundChanged();
         }
         h.status(READY, false);
         if (wasOverriding) h.executeCommand("clearScreensaverMode", Collections.emptyMap(), (ok, d, e) -> {});
@@ -262,6 +280,32 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
 
     @Override public void onEvent(String event, Map<String, Object> payload) {
         if (("ks." + LIGHT_EVENT).equals(event) && payload != null) light(payload.get("lux"));
+        if (("switch." + SOUND_KEY).equals(event) && payload != null) {
+            PluginHost h = host;
+            if (h == null) return;
+            if (Boolean.TRUE.equals(payload.get("on"))) startSound(h);
+            else stopSound(h);
+        }
+    }
+
+    /** Tells Home Assistant whether the sound plays, and saves whether it plays on its own for a restart. */
+    private synchronized void soundChanged() {
+        PluginHost h = host;
+        if (h == null) return;
+        if (entities) {
+            try {
+                h.publishSwitch(SOUND_KEY, "Night light sound", audio != null && audio.alive());
+            } catch (UnsupportedOperationException | LinkageError olderHost) {
+                entities = false;
+            }
+        }
+        if (soundOnly == savedSoundOn) return;
+        savedSoundOn = soundOnly;
+        try {
+            h.updateSettings(Collections.singletonMap("soundOn", (Object) soundOnly));
+        } catch (RuntimeException | LinkageError olderHost) {
+            h.log("Could not save the sound state: " + olderHost);
+        }
     }
 
     @Override public synchronized void stop() {
@@ -282,6 +326,7 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
         if (pendingEnd != null) { pendingEnd.cancel(false); pendingEnd = null; }
         session.shown();
         ensureAudio();
+        soundChanged();
         PluginHost h = host;
         if (h == null) return;
         h.status(session.showing(config.colourMs) ? "Soother playing." : "Night light on.", false);
@@ -313,6 +358,7 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
             h.executeCommand("clearScreensaverMode", Collections.emptyMap(), (ok, d, e) -> {});
         }
         h.status(soundOnly ? SOUND_ONLY : READY, false);
+        soundChanged();
     }
 
     /** True while the screensaver's grace timer is waiting to run. */
