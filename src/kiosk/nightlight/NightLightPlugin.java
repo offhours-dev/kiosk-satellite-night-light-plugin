@@ -4,6 +4,8 @@ package kiosk.nightlight;
 import android.content.Context;
 import android.view.View;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
@@ -30,6 +32,9 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
     static final String SOUND_ONLY = "Night sound playing.";
     /** The Home Assistant switch for the sound. */
     static final String SOUND_KEY = "sound";
+    /** The Home Assistant number for the night light volume, the nightVolume setting. */
+    static final String VOLUME_KEY = "volume";
+    static final int VOLUME_STEP = 5;
     /** KS can rebuild the view (rotation, UI scale), so wait a moment before treating it as dismissed. */
     static final long END_GRACE_MS = 2500;
     /** The tap that runs a corner gesture also dismisses the screensaver, so look again after it has gone. */
@@ -41,6 +46,8 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
 
     private volatile PluginHost host;
     private volatile Config config = new Config(Collections.emptyMap());
+    /** The settings behind config, so a change from Home Assistant can build the next one. */
+    private Map<String, Object> settings = new HashMap<>();
     private final Session session;
     private ScheduledExecutorService timer;
     private ScheduledFuture<?> pendingEnd;
@@ -51,6 +58,8 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
     private boolean savedSoundOn;
     /** False on a KS without plugin entities. */
     private boolean entities = true;
+    /** False on a KS without plugin numbers. */
+    private boolean numbers = true;
     private int views;
     /** True while this plugin, not the user's Screensaver mode, chose the night light. */
     private boolean overriding;
@@ -81,7 +90,7 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
 
     @Override public synchronized void start(PluginHost host, Map<String, Object> settings) {
         this.host = host;
-        config = new Config(settings);
+        setSettings(settings);
         timer = Executors.newSingleThreadScheduledExecutor(task -> {
             Thread thread = new Thread(task, "night-light-timer");
             thread.setDaemon(true);
@@ -104,11 +113,13 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
         savedSoundOn = config.soundOn;
         if (config.resumeSound && config.soundOn) startSound(host);
         else soundChanged();
+        publishVolume();
     }
 
     @Override public void configure(Map<String, Object> settings) {
-        config = new Config(settings);
+        setSettings(settings);
         updateTint();
+        publishVolume();
         PluginHost h = host;
         boolean changed;
         synchronized (this) { changed = config.soundOn != savedSoundOn; }
@@ -278,8 +289,58 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
         });
     }
 
+    private synchronized void setSettings(Map<String, Object> values) {
+        settings = values == null ? new HashMap<>() : new HashMap<>(values);
+        config = new Config(settings);
+    }
+
+    /** The night light volume as a whole percent on the setting's step, 0 to 100. */
+    static int volumePercent(double value) {
+        double clamped = Math.max(0, Math.min(100, value));
+        return (int) (Math.round(clamped / VOLUME_STEP) * VOLUME_STEP);
+    }
+
+    /** Sets the night light volume from Home Assistant, saves it, and confirms the applied value. */
+    private void setVolume(PluginHost h, Object value) {
+        if (!(value instanceof Number)) return;
+        double requested = ((Number) value).doubleValue();
+        if (Double.isNaN(requested) || Double.isInfinite(requested)) return;
+        Integer applied = volumePercent(requested);
+        synchronized (this) {
+            settings.put("nightVolume", applied);
+            config = new Config(settings);
+        }
+        try {
+            h.updateSettings(Collections.singletonMap("nightVolume", (Object) applied));
+        } catch (RuntimeException | LinkageError olderHost) {
+            h.log("Could not save the volume: " + olderHost);
+        }
+        publishVolume();
+    }
+
+    /** Tells Home Assistant the night light volume, as a slider. */
+    private synchronized void publishVolume() {
+        PluginHost h = host;
+        if (h == null || !numbers) return;
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("min", 0);
+        metadata.put("max", 100);
+        metadata.put("step", VOLUME_STEP);
+        metadata.put("unit", "%");
+        metadata.put("mode", "slider");
+        try {
+            h.publishNumber(VOLUME_KEY, "Night light volume", metadata, (double) volumePercent(config.nightVolume * 100));
+        } catch (UnsupportedOperationException | LinkageError olderHost) {
+            numbers = false;
+        }
+    }
+
     @Override public void onEvent(String event, Map<String, Object> payload) {
         if (("ks." + LIGHT_EVENT).equals(event) && payload != null) light(payload.get("lux"));
+        if (("number." + VOLUME_KEY).equals(event) && payload != null) {
+            PluginHost h = host;
+            if (h != null) setVolume(h, payload.get("value"));
+        }
         if (("switch." + SOUND_KEY).equals(event) && payload != null) {
             PluginHost h = host;
             if (h == null) return;

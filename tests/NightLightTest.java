@@ -20,6 +20,7 @@ public final class NightLightTest {
         plugin();
         audioOnly();
         soundEntity();
+        volumeEntity();
         System.out.println("NightLightTest passed");
     }
 
@@ -575,6 +576,38 @@ public final class NightLightTest {
         plugin.stop();
     }
 
+    static void volumeEntity() {
+        check(NightLightPlugin.volumePercent(57.4) == 55 && NightLightPlugin.volumePercent(58) == 60, "volume snaps to the step");
+        check(NightLightPlugin.volumePercent(-3) == 0 && NightLightPlugin.volumePercent(250) == 100, "volume stays in range");
+
+        FakeHost host = new FakeHost();
+        List<FakeSound> made = new ArrayList<>();
+        NightLightPlugin plugin = soundPlugin(host, made, Collections.singletonMap("nightVolume", 60));
+        check(Double.valueOf(60).equals(host.numbers.get("volume")), "publishes the night light volume: " + host.numbers);
+        Map<String, Object> meta = host.numberMeta.get("volume");
+        check(meta != null && Integer.valueOf(5).equals(meta.get("step")) && "slider".equals(meta.get("mode")), "as a slider in steps of 5: " + meta);
+        plugin.onEvent("number.volume", Collections.singletonMap("value", 72.3));
+        check(Double.valueOf(70).equals(host.numbers.get("volume")), "Home Assistant's value is applied on the step: " + host.numbers);
+        check(Math.abs(plugin.config().nightVolume - 0.70) < 1e-9, "and the sound uses it at once");
+        check(Integer.valueOf(70).equals(lastSaved(host, "nightVolume")), "and it is saved for a restart");
+        plugin.onEvent("number.volume", Collections.singletonMap("value", "loud"));
+        check(Double.valueOf(70).equals(host.numbers.get("volume")), "a value that is not a number is ignored");
+        Map<String, Object> changed = new HashMap<>();
+        changed.put("nightVolume", 35);
+        plugin.configure(changed);
+        check(Double.valueOf(35).equals(host.numbers.get("volume")), "a change in settings shows in Home Assistant");
+        plugin.onEvent("number.volume", Collections.singletonMap("value", 40));
+        check(plugin.config().nightVolume == 0.40 && plugin.config().nightSound == Config.Sound.NONE, "a slider change keeps the other settings");
+        plugin.stop();
+
+        host = new FakeHost();
+        host.noNumbers = true;
+        plugin = soundPlugin(host, made, Collections.emptyMap());
+        plugin.execute("startSound", Collections.emptyMap());
+        check(plugin.audioRunning() && Boolean.TRUE.equals(host.switches.get("sound")), "a KS without numbers still plays and keeps the switch");
+        plugin.stop();
+    }
+
     static final class FakeHost implements PluginHost {
         final List<String> commands = new ArrayList<>();
         final Map<String, Map<String, Object>> lastArgs = new HashMap<>();
@@ -602,6 +635,14 @@ public final class NightLightTest {
             if (noEntities) throw new UnsupportedOperationException("SDK 1 required");
             switches.put(key, state);
         }
+        @Override public void publishNumber(String key, String name, Map<String, Object> metadata, Double state) {
+            if (noEntities || noNumbers) throw new UnsupportedOperationException("Plugin numbers are unavailable");
+            numbers.put(key, state);
+            numberMeta.put(key, metadata);
+        }
+        final Map<String, Double> numbers = new HashMap<>();
+        final Map<String, Map<String, Object>> numberMeta = new HashMap<>();
+        boolean noNumbers;
         @Override public void updateSettings(Map<String, Object> values) { updates.add(new HashMap<>(values)); }
         String status = "";
         final Map<String, Boolean> switches = new HashMap<>();

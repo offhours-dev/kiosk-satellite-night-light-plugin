@@ -46,6 +46,8 @@ Each action can also be exposed to Home Assistant from the plugin page. You can 
 
 The plugin also adds a **Night light sound** switch to Home Assistant. It shows whether the sound is playing, from the screensaver or on its own, and turns the sound on or off. It needs a Kiosk Satellite release with plugin entities.
 
+A **Night light volume** slider (0 to 100%, steps of 5) sets the **Night light volume** setting from Home Assistant, so an automation can turn the sound down without the device volume. It needs Kiosk Satellite 2026.11.14 or later; older releases just leave it out.
+
 ### Recommended Kiosk Satellite settings
 
 Kiosk Satellite still controls when the screensaver starts and stops, so check these screensaver settings:
