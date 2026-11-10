@@ -56,6 +56,7 @@ Kiosk Satellite still controls when the screensaver starts and stops, so check t
 - **Screensaver brightness**: set a lowish panel brightness. The night light's own brightness setting dims it further.
 - **Motion wake**: turn it off, or someone moving in the room closes the screensaver.
 - **Sound with the screen off**: the sound normally stops when the screensaver closes. Turn on **Keep sound when closed**, or use the **Play night light sound** action, to keep it playing.
+- **Sound fade**: the sound fades in when it starts and out when it stops, over **Sound fade** seconds (0 for about a second). Home Assistant gets it as a number beside the volume, so an automation can wait for the fade to end.
 - **Media volume**: sound plays on the device's media volume. The plugin's **Soother volume** and **Night light volume** settings sit on top of that.
 
 ### Night mode
@@ -85,6 +86,7 @@ Tinting the widgets needs a Kiosk Satellite release with screensaver tints. On o
 | Night light | Keep sound when closed | Off |
 | Night light | Sound on | Off |
 | Night light | Resume sound after restart | Off |
+| Night light | Sound fade | 2 s |
 | Countdown | Bedtime countdown | Off |
 | Countdown | Bed time | 19:00 |
 | Countdown | Up time | 07:00 |

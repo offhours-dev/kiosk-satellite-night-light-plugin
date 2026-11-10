@@ -34,6 +34,8 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
     static final String SOUND_KEY = "sound";
     /** The Home Assistant number for the night light volume, the nightVolume setting. */
     static final String VOLUME_KEY = "volume";
+    static final String FADE_KEY = "fade";
+    static final double FADE_STEP = 0.5;
     static final int VOLUME_STEP = 5;
     /** KS can rebuild the view (rotation, UI scale), so wait a moment before treating it as dismissed. */
     static final long END_GRACE_MS = 2500;
@@ -300,6 +302,30 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
         return (int) (Math.round(clamped / VOLUME_STEP) * VOLUME_STEP);
     }
 
+    /** The sound fade in seconds on the setting's step, 0 to 60. */
+    static double fadeSeconds(double value) {
+        double clamped = Math.max(0, Math.min(60, value));
+        return Math.round(clamped / FADE_STEP) * FADE_STEP;
+    }
+
+    /** Sets the sound fade from Home Assistant, saves it, and confirms the applied value. */
+    private void setFade(PluginHost h, Object value) {
+        if (!(value instanceof Number)) return;
+        double requested = ((Number) value).doubleValue();
+        if (Double.isNaN(requested) || Double.isInfinite(requested)) return;
+        Double applied = fadeSeconds(requested);
+        synchronized (this) {
+            settings.put("soundFade", applied);
+            config = new Config(settings);
+        }
+        try {
+            h.updateSettings(Collections.singletonMap("soundFade", (Object) applied));
+        } catch (RuntimeException | LinkageError olderHost) {
+            h.log("Could not save the sound fade: " + olderHost);
+        }
+        publishVolume();
+    }
+
     /** Sets the night light volume from Home Assistant, saves it, and confirms the applied value. */
     private void setVolume(PluginHost h, Object value) {
         if (!(value instanceof Number)) return;
@@ -318,7 +344,7 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
         publishVolume();
     }
 
-    /** Tells Home Assistant the night light volume, as a slider. */
+    /** Tells Home Assistant the night light volume and the sound fade, as sliders. */
     private synchronized void publishVolume() {
         PluginHost h = host;
         if (h == null || !numbers) return;
@@ -330,6 +356,13 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
         metadata.put("mode", "slider");
         try {
             h.publishNumber(VOLUME_KEY, "Night light volume", metadata, (double) volumePercent(config.nightVolume * 100));
+            Map<String, Object> fade = new LinkedHashMap<>();
+            fade.put("min", 0);
+            fade.put("max", 60);
+            fade.put("step", FADE_STEP);
+            fade.put("unit", "s");
+            fade.put("mode", "slider");
+            h.publishNumber(FADE_KEY, "Sound fade", fade, fadeSeconds(config.soundFade));
         } catch (UnsupportedOperationException | LinkageError olderHost) {
             numbers = false;
         }
@@ -340,6 +373,10 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
         if (("number." + VOLUME_KEY).equals(event) && payload != null) {
             PluginHost h = host;
             if (h != null) setVolume(h, payload.get("value"));
+        }
+        if (("number." + FADE_KEY).equals(event) && payload != null) {
+            PluginHost h = host;
+            if (h != null) setFade(h, payload.get("value"));
         }
         if (("switch." + SOUND_KEY).equals(event) && payload != null) {
             PluginHost h = host;

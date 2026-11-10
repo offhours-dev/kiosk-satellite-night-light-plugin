@@ -60,6 +60,8 @@ final class Config {
     final boolean keepSound;
     /** Play the sound again when the plugin starts, if it was on. */
     final boolean resumeSound;
+    /** Seconds the sound takes to fade in when it starts and out when it stops. */
+    final double soundFade;
     /** The sound plays on its own; saved by the plugin so a restart can resume it. */
     final boolean soundOn;
 
@@ -98,6 +100,7 @@ final class Config {
         nightHide = bool(s, "nightHide", false);
         keepSound = bool(s, "keepSound", false);
         resumeSound = bool(s, "resumeSound", false);
+        soundFade = number(s, "soundFade", 2, 0, 60);
         soundOn = bool(s, "soundOn", false);
     }
 

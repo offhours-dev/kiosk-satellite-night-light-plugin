@@ -21,6 +21,7 @@ public final class NightLightTest {
         audioOnly();
         soundEntity();
         volumeEntity();
+        soundFade();
         System.out.println("NightLightTest passed");
     }
 
@@ -652,6 +653,37 @@ public final class NightLightTest {
         @Override public void showWindow(String title, String message, String buttonLabel) {}
         @Override public void hideWindow() {}
         @Override public void log(String message) {}
+    }
+
+    static void soundFade() {
+        check(new Config(Collections.emptyMap()).soundFade == 2, "sound fade is 2 s by default");
+        check(new Config(Collections.singletonMap("soundFade", 12)).soundFade == 12, "sound fade parses");
+        check(new Config(Collections.singletonMap("soundFade", 500)).soundFade == 60, "sound fade is capped");
+        long s = 1_000_000_000L, fade = 10 * s;
+        check(AudioOut.fadeGain(0, -1, fade, 1) == 0, "the fade in starts silent");
+        double early = AudioOut.fadeGain(2 * s, -1, fade, 1), mid = AudioOut.fadeGain(5 * s, -1, fade, 1);
+        check(early > 0 && early < mid && mid < 1, "the fade in grows: " + early + " " + mid);
+        check(AudioOut.fadeGain(10 * s, -1, fade, 1) == 1, "the fade in ends at full level");
+        check(AudioOut.fadeGain(60 * s, -1, fade, 1) == 1, "full level stays");
+        check(AudioOut.fadeGain(60 * s, 0, fade, 1) == 1, "the fade out starts at full level");
+        double out = AudioOut.fadeGain(60 * s, 5 * s, fade, 1);
+        check(out > 0 && out < 1, "the fade out falls: " + out);
+        check(AudioOut.fadeGain(60 * s, 10 * s, fade, 1) == 0, "the fade out ends silent");
+        check(AudioOut.fadeGain(3 * s, 0, fade, early) == early, "a stop during the fade in starts from its level");
+        check(AudioOut.fadeGain(0, -1, 0, 1) == 1 && AudioOut.fadeGain(0, 0, 0, 1) == 0, "no fade: on and off at once");
+
+        check(NightLightPlugin.fadeSeconds(1.4) == 1.5 && NightLightPlugin.fadeSeconds(99) == 60 && NightLightPlugin.fadeSeconds(-1) == 0, "fade snaps to 0.5 s in range");
+        FakeHost host = new FakeHost();
+        NightLightPlugin plugin = soundPlugin(host, new ArrayList<>(), Collections.emptyMap());
+        check(Double.valueOf(2).equals(host.numbers.get("fade")), "publishes the sound fade: " + host.numbers);
+        Map<String, Object> meta = host.numberMeta.get("fade");
+        check(meta != null && "s".equals(meta.get("unit")), "in seconds: " + meta);
+        plugin.onEvent("number.fade", Collections.singletonMap("value", 1.6));
+        check(Double.valueOf(1.5).equals(host.numbers.get("fade")), "Home Assistant's fade is applied on the step: " + host.numbers);
+        check(plugin.config().soundFade == 1.5, "and the sound uses it at once");
+        check(Double.valueOf(1.5).equals(lastSaved(host, "soundFade")), "and it is saved for a restart");
+        check(Double.valueOf(25).equals(host.numbers.get("volume")), "the volume stays: " + host.numbers);
+        plugin.stop();
     }
 
     static void check(boolean ok, String what) {

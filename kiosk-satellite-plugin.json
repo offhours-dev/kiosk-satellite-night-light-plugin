@@ -186,6 +186,19 @@
       "description": "If the sound was on when the device or Kiosk Satellite restarted, for example after a power cut, plays it again."
     },
     {
+      "key": "soundFade",
+      "type": "number",
+      "title": "Sound fade",
+      "default": 2,
+      "min": 0,
+      "max": 60,
+      "step": 0.5,
+      "unit": "s",
+      "group": "Night light",
+      "visibleWhen": { "key": "nightSound", "notEquals": "No sound" },
+      "description": "Seconds the sound takes to fade in when it starts and to fade out when it stops. Also a number in Home Assistant."
+    },
+    {
       "key": "countdown",
       "type": "boolean",
       "title": "Bedtime countdown",
@@ -223,7 +236,7 @@
       "key": "nightLux",
       "type": "number",
       "title": "Light level",
-      "default": 5,
+      "default": 2,
       "min": 1,
       "max": 100,
       "step": 1,
