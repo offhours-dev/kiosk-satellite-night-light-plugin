@@ -18,6 +18,7 @@ public final class NightLightTest {
         stars();
         synth();
         plugin();
+        audioOnly();
         System.out.println("NightLightTest passed");
     }
 
@@ -427,6 +428,86 @@ public final class NightLightTest {
         plugin.stop();
     }
 
+    /** A stand-in for the speaker: the JVM's Android stubs cannot make an AudioTrack. */
+    static final class FakeSound implements Sound {
+        boolean stopped;
+        @Override public void stop() { stopped = true; }
+        @Override public void stopNow() { stopped = true; }
+        @Override public boolean alive() { return !stopped; }
+    }
+
+    static NightLightPlugin soundPlugin(FakeHost host, List<FakeSound> made, Map<String, Object> settings) {
+        NightLightPlugin plugin = new NightLightPlugin(() -> 5_000_000L);
+        plugin.endGraceMs = 0;
+        plugin.soundFactory = source -> { FakeSound f = new FakeSound(); made.add(f); return f; };
+        plugin.start(host, settings);
+        return plugin;
+    }
+
+    /** Waits for the screensaver's grace timer, which runs at once in tests. */
+    static void settle(NightLightPlugin plugin) {
+        for (int i = 0; i < 200 && plugin.endPending(); i++) {
+            try { Thread.sleep(5); } catch (InterruptedException e) { throw new AssertionError(e); }
+        }
+        check(!plugin.endPending(), "the grace timer ran");
+    }
+
+    static void audioOnly() {
+        Config d = new Config(Collections.emptyMap());
+        check(!d.keepSound, "keep sound is off by default");
+        check(new Config(Collections.singletonMap("keepSound", true)).keepSound, "keep sound parses");
+
+        FakeHost host = new FakeHost();
+        List<FakeSound> made = new ArrayList<>();
+        NightLightPlugin plugin = soundPlugin(host, made, Collections.emptyMap());
+        plugin.execute("startSound", Collections.emptyMap());
+        check(made.size() == 1 && plugin.audioRunning(), "play sound starts the speaker");
+        check(NightLightPlugin.SOUND_ONLY.equals(host.status), "status says the sound plays: " + host.status);
+        check(host.commands.isEmpty(), "play sound needs no screensaver: " + host.commands);
+        plugin.execute("startSound", Collections.emptyMap());
+        check(made.size() == 1, "play sound twice keeps one speaker");
+        plugin.execute("stopSound", Collections.emptyMap());
+        check(made.get(0).stopped && !plugin.audioRunning(), "stop sound stops it");
+
+        plugin.execute("startSound", Collections.emptyMap());
+        plugin.viewShown();
+        check(made.size() == 2, "the screensaver reuses the playing speaker");
+        plugin.viewGone();
+        settle(plugin);
+        check(plugin.audioRunning(), "a sound started by the action outlives the screensaver");
+        plugin.execute("stopNightLight", Collections.emptyMap());
+        check(made.get(1).stopped && !plugin.audioRunning(), "close stops a playing sound");
+        check(NightLightPlugin.READY.equals(host.status), "and the status says so: " + host.status);
+        plugin.stop();
+
+        made.clear();
+        host = new FakeHost();
+        plugin = soundPlugin(host, made, Collections.emptyMap());
+        plugin.viewShown();
+        check(made.size() == 1, "the screensaver starts the speaker");
+        plugin.viewGone();
+        settle(plugin);
+        check(made.get(0).stopped && !plugin.audioRunning(), "without keep sound, closing stops it");
+        plugin.stop();
+
+        made.clear();
+        host = new FakeHost();
+        plugin = soundPlugin(host, made, Collections.singletonMap("keepSound", true));
+        plugin.viewShown();
+        plugin.viewGone();
+        settle(plugin);
+        check(!made.get(0).stopped && plugin.audioRunning(), "with keep sound, closing leaves it playing");
+        plugin.viewShown();
+        check(made.size() == 1, "and the screensaver picks it up again");
+        plugin.viewGone();
+        settle(plugin);
+        plugin.execute("stopSound", Collections.emptyMap());
+        check(made.get(0).stopped && !plugin.audioRunning(), "stop sound ends a kept sound");
+        plugin.execute("startSound", Collections.emptyMap());
+        plugin.stop();
+        check(made.get(1).stopped, "stopping the plugin stops the sound");
+    }
+
     static final class FakeHost implements PluginHost {
         final List<String> commands = new ArrayList<>();
         final Map<String, Map<String, Object>> lastArgs = new HashMap<>();
@@ -450,7 +531,8 @@ public final class NightLightTest {
             this.touch = touch;
         }
         @Override public void removeScreensaver(String key) {}
-        @Override public void status(String message, boolean error) {}
+        String status = "";
+        @Override public void status(String message, boolean error) { status = message; }
         @Override public void showWindow(String title, String message, String buttonLabel) {}
         @Override public void hideWindow() {}
         @Override public void log(String message) {}

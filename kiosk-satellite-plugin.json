@@ -159,6 +159,15 @@
       "description": "How loud the night light sound plays, separate from the soother, on top of the device's media volume."
     },
     {
+      "key": "keepSound",
+      "type": "boolean",
+      "title": "Keep sound when closed",
+      "default": false,
+      "group": "Night light",
+      "visibleWhen": { "key": "nightSound", "notEquals": "No sound" },
+      "description": "Keeps the sound playing after the screensaver closes, for example when the screen is touched or turns off. Stop night light sound or Close Night Light ends it."
+    },
+    {
       "key": "countdown",
       "type": "boolean",
       "title": "Bedtime countdown",
@@ -240,6 +249,14 @@
     {
       "id": "toggleSleep",
       "title": "Start or end soother"
+    },
+    {
+      "id": "startSound",
+      "title": "Play night light sound"
+    },
+    {
+      "id": "stopSound",
+      "title": "Stop night light sound"
     },
     {
       "id": "stopNightLight",

@@ -9,7 +9,7 @@ import android.media.AudioTrack;
  * Streams the lullaby to the media volume on its own thread while the night light shows. It reads the settings and
  * the session itself every 50 ms, so the music follows the timeline without any timers.
  */
-final class AudioOut implements Runnable {
+final class AudioOut implements Runnable, Sound {
     interface Source {
         Config config();
         long elapsed();
@@ -37,19 +37,19 @@ final class AudioOut implements Runnable {
     }
 
     /** Fades out over about a second, then releases the speaker. */
-    void stop() {
+    @Override public void stop() {
         if (!running) return;
         stopRequested = System.nanoTime();
         running = false;
     }
 
     /** Stops right away, for plugin shutdown. */
-    void stopNow() {
+    @Override public void stopNow() {
         stop();
         thread.interrupt();
     }
 
-    boolean alive() {
+    @Override public boolean alive() {
         return running && thread.isAlive();
     }
 

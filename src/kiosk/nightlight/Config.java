@@ -56,6 +56,8 @@ final class Config {
     final double nightLux;
     final int nightColor;
     final boolean nightHide;
+    /** Keep the night light sound playing after the screensaver closes. */
+    final boolean keepSound;
 
     Config(Map<String, Object> s) {
         colourMs = (long) (number(s, "colourMinutes", 30, 1, 240) * 60_000L);
@@ -90,6 +92,7 @@ final class Config {
         nightLux = number(s, "nightLux", 5, 1, 100);
         nightColor = color(s, "nightColor", 0xA63A32);
         nightHide = bool(s, "nightHide", false);
+        keepSound = bool(s, "keepSound", false);
     }
 
     static Sound sound(String name, Sound fallback) {

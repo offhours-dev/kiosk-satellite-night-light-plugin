@@ -10,6 +10,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import me.jxl.kiosk.plugins.KioskPlugin;
 import me.jxl.kiosk.plugins.KsTheme;
 import me.jxl.kiosk.plugins.OverlayFactory;
@@ -26,6 +27,7 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
     static final String KEY = "nightlight";
     static final String MODE = "plugin:" + ID + ":" + KEY;
     static final String READY = "Ready. Choose Night Light under Screensaver mode, or run the Start night light action.";
+    static final String SOUND_ONLY = "Night sound playing.";
     /** KS can rebuild the view (rotation, UI scale), so wait a moment before treating it as dismissed. */
     static final long END_GRACE_MS = 2500;
     /** The tap that runs a corner gesture also dismisses the screensaver, so look again after it has gone. */
@@ -40,7 +42,9 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
     private final Session session;
     private ScheduledExecutorService timer;
     private ScheduledFuture<?> pendingEnd;
-    private AudioOut audio;
+    private Sound audio;
+    /** True while the sound plays on its own: started by Play sound, or kept by Keep sound when closed. */
+    private boolean soundOnly;
     private int views;
     /** True while this plugin, not the user's Screensaver mode, chose the night light. */
     private boolean overriding;
@@ -51,6 +55,15 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
     /** The colour KS's widgets are tinted, or null while they keep their own. */
     private String tint;
     private int tintTries;
+
+    /** Makes the speaker. Tests swap it for a fake, since the JVM's Android stubs cannot build an AudioTrack. */
+    Function<AudioOut.Source, Sound> soundFactory = source -> {
+        AudioOut out = new AudioOut(source);
+        out.start();
+        return out;
+    };
+    /** The screensaver's grace period. Tests set it to 0. */
+    long endGraceMs = END_GRACE_MS;
 
     public NightLightPlugin() {
         this(System::currentTimeMillis);
@@ -161,6 +174,8 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
             case "stopNightLight": stopNightLight(h); break;
             case "sleepNow": endShow(h); break;
             case "toggleSleep": toggleShow(); break;
+            case "startSound": startSound(h); break;
+            case "stopSound": stopSound(h); break;
             default: throw new IllegalArgumentException("Unknown action: " + command);
         }
     }
@@ -207,9 +222,38 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
         });
     }
 
+    /** Plays the night light sound with no screensaver, until Stop sound or Close Night Light. */
+    private synchronized void startSound(PluginHost h) {
+        soundOnly = true;
+        ensureAudio();
+        h.status(views > 0 ? "Night light on." : SOUND_ONLY, false);
+    }
+
+    /** Stops the sound, whatever started it. A screensaver that shows again starts it again. */
+    private synchronized void stopSound(PluginHost h) {
+        soundOnly = false;
+        stopAudio();
+        h.status(views > 0 ? "Night light on, sound stopped." : READY, false);
+    }
+
+    private void ensureAudio() {
+        if (audio == null || !audio.alive()) audio = soundFactory.apply(this);
+    }
+
+    private void stopAudio() {
+        if (audio != null) audio.stop();
+        audio = null;
+    }
+
     private void stopNightLight(PluginHost h) {
         boolean wasOverriding;
-        synchronized (this) { wasOverriding = overriding; overriding = false; }
+        synchronized (this) {
+            wasOverriding = overriding;
+            overriding = false;
+            soundOnly = false;
+            stopAudio();
+        }
+        h.status(READY, false);
         if (wasOverriding) h.executeCommand("clearScreensaverMode", Collections.emptyMap(), (ok, d, e) -> {});
         h.executeCommand("stopScreensaver", Collections.emptyMap(), (ok, d, e) -> {
             if (!ok) h.status("Could not stop the screensaver: " + e, true);
@@ -223,6 +267,7 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
     @Override public synchronized void stop() {
         if (audio != null) audio.stopNow();
         audio = null;
+        soundOnly = false;
         if (timer != null) timer.shutdownNow();
         timer = null;
         session.ended();
@@ -236,10 +281,7 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
         views++;
         if (pendingEnd != null) { pendingEnd.cancel(false); pendingEnd = null; }
         session.shown();
-        if (audio == null || !audio.alive()) {
-            audio = new AudioOut(this);
-            audio.start();
-        }
+        ensureAudio();
         PluginHost h = host;
         if (h == null) return;
         h.status(session.showing(config.colourMs) ? "Soother playing." : "Night light on.", false);
@@ -253,7 +295,7 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
     synchronized void viewGone() {
         views = Math.max(0, views - 1);
         if (views > 0 || timer == null) return;
-        pendingEnd = timer.schedule(this::ended, END_GRACE_MS, TimeUnit.MILLISECONDS);
+        pendingEnd = timer.schedule(this::ended, endGraceMs, TimeUnit.MILLISECONDS);
     }
 
     private synchronized void ended() {
@@ -261,8 +303,8 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
         if (views > 0) return;
         tint = null;
         session.ended();
-        if (audio != null) audio.stop();
-        audio = null;
+        if (audio != null && (soundOnly || config.keepSound)) soundOnly = true;
+        else stopAudio();
         PluginHost h = host;
         if (h == null) return;
         // The Start action only borrows the screensaver for the night. Give the usual one back in the morning.
@@ -270,7 +312,12 @@ public final class NightLightPlugin implements KioskPlugin, GlowView.Source, Aud
             overriding = false;
             h.executeCommand("clearScreensaverMode", Collections.emptyMap(), (ok, d, e) -> {});
         }
-        h.status(READY, false);
+        h.status(soundOnly ? SOUND_ONLY : READY, false);
+    }
+
+    /** True while the screensaver's grace timer is waiting to run. */
+    synchronized boolean endPending() {
+        return pendingEnd != null;
     }
 
     synchronized boolean audioRunning() {
